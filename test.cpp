@@ -1,5 +1,7 @@
 #include <iostream>
 
+#include <ultimaille/io/by_extension.h>
+
 #include "luabinder.h"
 
 using namespace std;
@@ -20,7 +22,7 @@ void check(lua_State *L, int err) {
 }
 
 struct Foo {
-	int y;
+	int y=0;
 	~Foo() { cerr << "DESTRUCTOR " << this << endl; }
 	Foo(const Foo &a) { cerr << "COPY CONST REF" << endl; }
 	Foo(Foo &&a) { cerr << "COPY RVALUE" << endl; }
@@ -34,9 +36,9 @@ struct Foo {
 	}
 };
 
-Foo gen() { return Foo(); }
+Foo gen() { Foo a; a.y = 100; return a; }
 
-int main(int argc, char **argv) {
+int main() {
 	lua_State *L = luaL_newstate();
 	luaL_openlibs(L);
 
@@ -46,14 +48,13 @@ int main(int argc, char **argv) {
 	Foo *b = new Foo(gen());
 	cerr << "========" << endl;
 
-	LuaClass<Foo> myluafoo(L, "Foo");
+	Lua::Class<Foo> myluafoo(L, "Foo");
 	myluafoo.cons()
 		.fun("f", &Foo::f)
 		.fun("bar", &Foo::bar);
-;
-	luaL_loadstring(L, "x = Foo.new();\
-		x:bar();\
-		print(x:f(10));");
+	Lua::addFunction(L, "gen", gen);
+
+	luaL_loadfile(L, PROJECT_DIR "/test.lua");
 	if(lua_pcall(L, 0, LUA_MULTRET, 0) != LUA_OK) {
 		const int top = lua_gettop(L);
 		cerr << "Total on stack " << top << "\n";

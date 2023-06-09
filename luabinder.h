@@ -6,88 +6,101 @@
 #include <lualib.h>
 #include <lauxlib.h>
 
-template<typename T> struct LuaClass;
+namespace Lua {
 
-// STACK
-template<typename T> struct LuaStack {
-	static T& get(lua_State *L, int ind) { return *(T*)luaL_checkudata(L, ind, LuaClass<T>::getName()); }
+template<typename T> struct Class;
+
+///////////
+// STACK //
+///////////
+
+template<typename T> struct Stack {
+	static T& get(lua_State *L, int ind) { return *(T*)luaL_checkudata(L, ind, Class<T>::getName()); }
 	static void add(lua_State *L, T x) { assert(false); }
 };
-template<> struct LuaStack<int> {
+template<> struct Stack<int> {
 	static int get(lua_State *L, int ind) { return lua_tointeger(L, ind); }
 	static void add(lua_State *L, int x) { lua_pushinteger(L, x); }
 };
-template<> struct LuaStack<double> {
+template<> struct Stack<double> {
 	static double get(lua_State *L, int ind) { return lua_tonumber(L, ind); }
 	static void add(lua_State *L, double x) { lua_pushnumber(L, x); }
 };
-template<> struct LuaStack<std::string> {
+template<> struct Stack<std::string> {
 	static std::string get(lua_State *L, int ind) { return lua_tostring(L, ind); }
 	static void add(lua_State *L, const std::string &x) { assert(false); }
 };
+
+///////////
+// CLASS //
+///////////
 
 template<typename T, typename... Args, int... inds>
 int cons2(lua_State *L, const std::string &name, std::integer_sequence<int, inds...>) {
 	T* obj = (T*) lua_newuserdata(L, sizeof(T));
 	assert(obj);
-	new(obj) T(LuaStack<Args>::get(L, inds + 1)...);
+	new(obj) T(Stack<Args>::get(L, inds + 1)...);
 	luaL_getmetatable(L, name.c_str());
 	lua_setmetatable(L, -2);
 	return 1;
 }
 
 template<typename F, typename U, typename Ret, typename... Args, int... inds>
-Ret callClosure(lua_State *L, F *g, std::integer_sequence<int, inds...>) {
-	return (LuaStack<U>::get(L, 1).**g)(LuaStack<Args>::get(L, inds + 2)...);
+Ret callMetClosure(lua_State *L, F *g, std::integer_sequence<int, inds...>) {
+	return (Stack<U>::get(L, 1).**g)(Stack<Args>::get(L, inds + 2)...);
+}
+template<typename F, typename Ret, typename... Args, int... inds>
+Ret callFunClosure(lua_State *L, F *g, std::integer_sequence<int, inds...>) {
+	return (**g)(Stack<Args>::get(L, inds + 1)...);
 }
 
 template<typename T>
-struct LuaClass {
-	LuaClass(lua_State *L, const std::string &name) {
-		LuaClass<T>::L = L;
-		LuaClass<T>::name = name;
-		luaL_newmetatable(L, name.c_str());
+struct Class {
+	Class(lua_State *L, const char* name) {
+		Class<T>::L = L;
+		Class<T>::name = name;
+		luaL_newmetatable(L, name);
 		lua_pushvalue(L, -1);
 		lua_setfield(L, -2, "__index");
 		lua_pushcfunction(L, gc);
 		lua_setfield(L, -2, "__gc");
-		lua_setglobal(L, name.c_str());
+		lua_setglobal(L, name);
 	}
 
 	template<typename... Args>
-	LuaClass<T>& cons(const std::string &name = "new") {
+	Class<T>& cons(const char *name = "new") {
 		struct Temp {
-			static int cons(lua_State *L) { return cons2<T, Args...>(L, LuaClass<T>::name, std::make_integer_sequence<int, sizeof...(Args)>{}); }
+			static int cons(lua_State *L) { return cons2<T, Args...>(L, Class<T>::name, std::make_integer_sequence<int, sizeof...(Args)>{}); }
 		};
-		luaL_getmetatable(L, LuaClass<T>::name.c_str());
+		luaL_getmetatable(L, Class<T>::name.c_str());
 		assert(lua_istable(L, -1));
 		lua_pushcfunction(L, Temp::cons);
-		lua_setfield(L, -2, name.c_str());
+		lua_setfield(L, -2, name);
 		lua_pop(L, 1);
 		return *this;
 	}
 
 	template<typename U, typename Ret, typename... Args>
-	LuaClass<T>& fun(const std::string &name, Ret(U::*f)(Args...)) {
+	Class<T>& fun(const char* name, Ret(U::*f)(Args...)) {
 		using F = decltype(f);
 		struct Temp {
 			static int f(lua_State *L) {
 				F *g = (F*) lua_touserdata(L, lua_upvalueindex(1));
 				assert(g);
 				if constexpr (std::is_same_v<Ret, void>) {
-					callClosure<F, U, Ret, Args...>(L, g, std::make_integer_sequence<int, sizeof...(Args)>{});
+					callMetClosure<F, U, Ret, Args...>(L, g, std::make_integer_sequence<int, sizeof...(Args)>{});
 					return 0;
 				} else {
-					LuaStack<Ret>::add(L, callClosure<F, U, Ret, Args...>(L, g, std::make_integer_sequence<int, sizeof...(Args)>{}));
+					Stack<Ret>::add(L, callMetClosure<F, U, Ret, Args...>(L, g, std::make_integer_sequence<int, sizeof...(Args)>{}));
 					return 1;
 				}
 			}
 		};
-		luaL_getmetatable(L, LuaClass<T>::name.c_str());
+		luaL_getmetatable(L, Class<T>::name.c_str());
 		F* g = (F*)lua_newuserdata(L, sizeof(F));
 		*g = f;
 		lua_pushcclosure(L, Temp::f, 1);
-		lua_setfield(L, -2, name.c_str());
+		lua_setfield(L, -2, name);
 		lua_pop(L, 1);
 		return *this;
 	}
@@ -105,5 +118,33 @@ private:
 	}
 };
 
-template<typename T> lua_State* LuaClass<T>::L = nullptr;
-template<typename T> std::string LuaClass<T>::name = "Lua Class not defined";
+template<typename T> lua_State* Class<T>::L = nullptr;
+template<typename T> std::string Class<T>::name = "Lua Class not defined";
+
+///////////////
+// FUNCTIONS //
+///////////////
+
+template<typename Ret, typename... Args>
+void addFunction(lua_State *L, const char *name, Ret f(Args...)) {
+	using F = decltype(f);
+	struct Temp {
+		static int f(lua_State *L) {
+			F *g = (F*) lua_touserdata(L, lua_upvalueindex(1));
+			assert(g);
+			if constexpr (std::is_same_v<Ret, void>) {
+				callFunClosure<F, Ret, Args...>(L, g, std::make_integer_sequence<int, sizeof...(Args)>{});
+				return 0;
+			} else {
+				Stack<Ret>::add(L, callFunClosure<F, Ret, Args...>(L, g, std::make_integer_sequence<int, sizeof...(Args)>{}));
+				return 1;
+			}
+		}
+	};
+	F* g = (F*)lua_newuserdata(L, sizeof(F));
+	*g = f;
+	lua_pushcclosure(L, Temp::f, 1);
+	lua_setglobal(L, name);
+}
+
+}
