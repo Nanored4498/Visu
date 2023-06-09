@@ -30,7 +30,7 @@ template<typename T, typename... Args, int... inds>
 int cons2(lua_State *L, const std::string &name, std::integer_sequence<int, inds...>) {
 	T* obj = (T*) lua_newuserdata(L, sizeof(T));
 	assert(obj);
-	*obj = T(LuaStack<Args>::get(L, inds + 1)...);
+	new(obj) T(LuaStack<Args>::get(L, inds + 1)...);
 	luaL_getmetatable(L, name.c_str());
 	lua_setmetatable(L, -2);
 	return 1;
