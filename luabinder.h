@@ -8,6 +8,12 @@
 
 namespace Lua {
 
+static lua_State *L = nullptr;
+void new_state() {
+	L = luaL_newstate();
+	luaL_openlibs(L);
+}
+
 template<typename T> struct Class;
 
 ///////////
@@ -15,24 +21,31 @@ template<typename T> struct Class;
 ///////////
 
 template<typename T> struct Stack {
-	static T& get(lua_State *L, int ind) { return *(T*)luaL_checkudata(L, ind, Class<T>::getName()); }
-	template<typename G> static void add(lua_State *L, const G &x) {
+	static T& get(int ind) { return *(T*)luaL_checkudata(L, ind, Class<T>::getName()); }
+	template<typename G> static void add(const G &x) {
+		#ifndef NDEBUG
+		if(!std::strcmp(Class<T>::getName(), "Lua Class not defined"))
+			luaL_error(L, "tried to push a non-defined class [%s] on the stack...\n", typeid(T).name());
+		#endif
 		T* obj = (T*) lua_newuserdata(L, sizeof(T));
 		new(obj) T(x());
 		luaL_getmetatable(L, Class<T>::getName());
 		lua_setmetatable(L, -2);
 	}
 };
+template<typename T> struct Stack<T&> {
+	static T& get(int ind) { return *(T*)luaL_checkudata(L, ind, Class<T>::getName()); }
+};
 template<> struct Stack<int> {
-	static int get(lua_State *L, int ind) { return lua_tointeger(L, ind); }
-	template<typename G> static void add(lua_State *L, const G &x) { lua_pushinteger(L, x()); }
+	static int get(int ind) { return lua_tointeger(L, ind); }
+	template<typename G> static void add(const G &x) { lua_pushinteger(L, x()); }
 };
 template<> struct Stack<double> {
-	static double get(lua_State *L, int ind) { return lua_tonumber(L, ind); }
-	template<typename G> static void add(lua_State *L, const G &x) { lua_pushnumber(L, x()); }
+	static double get(int ind) { return lua_tonumber(L, ind); }
+	template<typename G> static void add(const G &x) { lua_pushnumber(L, x()); }
 };
 template<> struct Stack<std::string> {
-	static std::string get(lua_State *L, int ind) { return lua_tostring(L, ind); }
+	static std::string get(int ind) { return lua_tostring(L, ind); }
 };
 
 ///////////
@@ -50,20 +63,19 @@ int cons2(lua_State *L, const std::string &name, std::integer_sequence<int, inds
 }
 
 template<typename F, typename U, typename Ret, typename... Args, int... inds>
-int callMetClosure(lua_State *L, F *g, std::integer_sequence<int, inds...>) {
+int callMetClosure(F *g, std::integer_sequence<int, inds...>) {
 	if constexpr (std::is_same_v<Ret, void>) {
-		(Stack<U>::get(L, 1).**g)(Stack<Args>::get(L, inds + 2)...);
+		(Stack<U>::get(1).**g)(Stack<Args>::get(inds + 2)...);
 		return 0;
 	} else {
-		Stack<Ret>::add(L, [&](){ return (Stack<U>::get(L, 1).**g)(Stack<Args>::get(L, inds + 2)...); });
+		Stack<Ret>::add([&](){ return (Stack<U>::get(1).**g)(Stack<Args>::get(inds + 2)...); });
 		return 1;
 	}
 }
 
 template<typename T>
 struct Class {
-	Class(lua_State *L, const char* name) {
-		Class<T>::L = L;
+	Class(const char* name) {
 		Class<T>::name = name;
 		luaL_newmetatable(L, name);
 		lua_pushvalue(L, -1);
@@ -87,13 +99,28 @@ struct Class {
 	}
 
 	template<typename U, typename Ret, typename... Args>
-	Class<T>& fun(const char* name, Ret(U::*f)(Args...)) {
-		using F = decltype(f);
+	Class<T>& fun(const char* name, Ret(U::*f)(Args...)) { return fun0<decltype(f),U,Ret,Args...>(name, f); }
+	template<typename U, typename Ret, typename... Args>
+	Class<T>& fun(const char* name, Ret(U::*f)(Args...) const) { return fun0<decltype(f),U,Ret,Args...>(name, f); }
+
+	static const char* getName() { return name.c_str(); }
+
+private:
+	static std::string name;
+
+	static int gc(lua_State *L) {
+		T* obj = (T*) luaL_checkudata(L, 1, name.c_str());
+		obj->~T();
+		return 0;
+	}
+
+	template<typename F, typename U, typename Ret, typename... Args>
+	Class<T>& fun0(const char* name, F f) {
 		struct Temp {
 			static int f(lua_State *L) {
 				F *g = (F*) lua_touserdata(L, lua_upvalueindex(1));
 				assert(g);
-				return callMetClosure<F, U, Ret, Args...>(L, g, std::make_integer_sequence<int, sizeof...(Args)>{});
+				return callMetClosure<F, U, Ret, Args...>(g, std::make_integer_sequence<int, sizeof...(Args)>{});
 			}
 		};
 		luaL_getmetatable(L, Class<T>::name.c_str());
@@ -104,21 +131,8 @@ struct Class {
 		lua_pop(L, 1);
 		return *this;
 	}
-
-	static const char* getName() { return name.c_str(); }
-
-private:
-	static lua_State *L;
-	static std::string name;
-
-	static int gc(lua_State *L) {
-		T* obj = (T*) luaL_checkudata(L, 1, name.c_str());
-		obj->~T();
-		return 0;
-	}
 };
 
-template<typename T> lua_State* Class<T>::L = nullptr;
 template<typename T> std::string Class<T>::name = "Lua Class not defined";
 
 ///////////////
@@ -126,24 +140,24 @@ template<typename T> std::string Class<T>::name = "Lua Class not defined";
 ///////////////
 
 template<typename F, typename Ret, typename... Args, int... inds>
-int callFunClosure(lua_State *L, F *g, std::integer_sequence<int, inds...>) {
+int callFunClosure(F *g, std::integer_sequence<int, inds...>) {
 	if constexpr (std::is_same_v<Ret, void>) {
-		(**g)(Stack<Args>::get(L, inds + 1)...);
+		(**g)(Stack<Args>::get(inds + 1)...);
 		return 0;
 	} else {
-		Stack<Ret>::add(L, [&](){ return (**g)(Stack<Args>::get(L, inds + 1)...); });
+		Stack<Ret>::add([&](){ return (**g)(Stack<Args>::get(inds + 1)...); });
 		return 1;
 	}
 }
 
 template<typename Ret, typename... Args>
-void addFunction(lua_State *L, const char *name, Ret f(Args...)) {
+void addFunction(const char *name, Ret f(Args...)) {
 	using F = decltype(f);
 	struct Temp {
 		static int f(lua_State *L) {
 			F *g = (F*) lua_touserdata(L, lua_upvalueindex(1));
 			assert(g);
-			return callFunClosure<F, Ret, Args...>(L, g, std::make_integer_sequence<int, sizeof...(Args)>{});
+			return callFunClosure<F, Ret, Args...>(g, std::make_integer_sequence<int, sizeof...(Args)>{});
 		}
 	};
 	F* g = (F*)lua_newuserdata(L, sizeof(F));

@@ -39,33 +39,33 @@ struct Foo {
 Foo gen() { Foo a; a.y = 100; return a; }
 
 int main() {
-	lua_State *L = luaL_newstate();
-	luaL_openlibs(L);
+	Lua::new_state();
 
-	cerr << "========" << endl;
-	Foo a = gen();
-	cerr << "========" << endl;
-	Foo *b = new Foo(gen());
-	cerr << "========" << endl;
-
-	Lua::Class<Foo> myluafoo(L, "Foo");
+	Lua::Class<Foo> myluafoo("Foo");
 	myluafoo.cons()
 		.fun("f", &Foo::f)
 		.fun("bar", &Foo::bar);
-	Lua::addFunction(L, "gen", gen);
+	Lua::addFunction("gen", gen);
 
-	luaL_loadfile(L, PROJECT_DIR "/test.lua");
-	if(lua_pcall(L, 0, LUA_MULTRET, 0) != LUA_OK) {
-		const int top = lua_gettop(L);
+	Lua::Class<UM::SurfaceAttributes> l_SurfaceAttributes("SurfaceAttributes");
+	Lua::Class<UM::Triangles> l_Triangles("Triangles");
+	l_Triangles.cons()
+		.fun("nfacets", &UM::Triangles::nfacets);
+	Lua::addFunction("read_by_extension_triangles", UM::read_by_extension<UM::Triangles>);
+
+
+	luaL_loadfile(Lua::L, PROJECT_DIR "/test.lua");
+	if(lua_pcall(Lua::L, 0, LUA_MULTRET, 0) != LUA_OK) {
+		const int top = lua_gettop(Lua::L);
 		cerr << "Total on stack " << top << "\n";
 		for(int i = 1; i <= top; ++i) {
-			cerr << "[" << i << "] -> (" << lua_typename(L, lua_type(L, i)) << ") ";
-			if(lua_type(L, i) == LUA_TSTRING) cerr << lua_tostring(L, i);
+			cerr << "[" << i << "] -> (" << lua_typename(Lua::L, lua_type(Lua::L, i)) << ") ";
+			if(lua_type(Lua::L, i) == LUA_TSTRING) cerr << lua_tostring(Lua::L, i);
 			cerr << "\n";
 		}
-		throw std::runtime_error(lua_tostring(L, 1));
+		throw std::runtime_error(lua_tostring(Lua::L, 1));
 	}
 
-	lua_close(L);
+	lua_close(Lua::L);
 	return 0;
 }
