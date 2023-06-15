@@ -31,7 +31,6 @@ include_directories(
 	${LUA_INCLUDE_DIR}
 	ext/ultimaille
 	src
-	# LuaBridge/Source
 )
 
 file(GLOB SOURCES src/*.cpp)

@@ -206,6 +206,9 @@ private:
 template<typename T> std::string Class<T>::name = "Lua Class not defined";
 template<typename T> std::unordered_map<const char*, typename Class<T>::VarAccess, HashName, PredName> Class<T>::vars;
 
+template<typename T>
+inline Class<T> addClass(const char *name) { return Class<T>(name); }
+
 ///////////////
 // FUNCTIONS //
 ///////////////

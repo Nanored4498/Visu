@@ -14,8 +14,3 @@ print(m:nfacets());
 
 print("==================");
 
--- y = gen2();
--- y:bar();
--- print(y:f(10), y.y, type(y.y));
--- y.y = 50;
--- print(y:f(10), y.y);
