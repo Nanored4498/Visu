@@ -7,9 +7,13 @@ if(CMAKE_CXX_COMPILER_ID MATCHES GNU OR CMAKE_CXX_COMPILER_ID MATCHES Clang)
 	add_compile_options(
 		-fdiagnostics-color
 	)
+	set(CMAKE_CXX_FLAGS_RELEASE "-O3 -Wall -DNDEBUG")
+	set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g")
 endif()
 
 find_package(Lua REQUIRED)
+find_package(glfw3 REQUIRED)
+find_package(Vulkan REQUIRED)
 
 add_subdirectory(ext/ultimaille)
 
@@ -17,19 +21,34 @@ if(CMAKE_CXX_COMPILER_ID MATCHES GNU OR CMAKE_CXX_COMPILER_ID MATCHES Clang)
 	add_compile_options(
 		-Wall
 		-Wextra
+		-Wpedantic
+		-pedantic-errors
 	)
 endif()
 
 add_definitions(-DPROJECT_DIR=\"${CMAKE_SOURCE_DIR}\")
-
-file(GLOB SOURCES *.cpp)
 include_directories(
 	${LUA_INCLUDE_DIR}
 	ext/ultimaille
+	src
+	# LuaBridge/Source
 )
 
+file(GLOB SOURCES src/*.cpp)
 add_executable(${PROJECT_NAME} ${SOURCES})
 target_link_libraries(${PROJECT_NAME}
 	${LUA_LIBRARIES}
 	ultimaille
+	glfw
+	vulkan
 )
+
+
+######## TEST #########
+file(GLOB TEST_SOURCES src/test/*.cpp)
+add_executable(Test ${TEST_SOURCES})
+target_link_libraries(Test
+	${LUA_LIBRARIES}
+	ultimaille
+)
+########################

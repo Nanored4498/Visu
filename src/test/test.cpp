@@ -4,6 +4,8 @@
 
 #include "luabinder.h"
 
+// #include <LuaBridge/LuaBridge.h>
+
 using namespace std;
 
 void check(lua_State *L, int err) {
@@ -44,7 +46,8 @@ int main() {
 	Lua::Class<Foo> myluafoo("Foo");
 	myluafoo.cons()
 		.fun("f", &Foo::f)
-		.fun("bar", &Foo::bar);
+		.fun("bar", &Foo::bar)
+		.var("y", &Foo::y);
 	Lua::addFunction("gen", gen);
 
 	Lua::Class<UM::SurfaceAttributes> l_SurfaceAttributes("SurfaceAttributes");
@@ -53,8 +56,15 @@ int main() {
 		.fun("nfacets", &UM::Triangles::nfacets);
 	Lua::addFunction("read_by_extension_triangles", UM::read_by_extension<UM::Triangles>);
 
+	// luabridge::getGlobalNamespace(Lua::L)
+	// 	.beginClass<Foo>("Foo2")
+	// 		.addFunction("bar", &Foo::bar)
+	// 		.addFunction("f", &Foo::f)
+	// 		.addProperty("y", &Foo::y)
+	// 	.endClass()
+	// 	.addFunction("gen2", gen);
 
-	luaL_loadfile(Lua::L, PROJECT_DIR "/test.lua");
+	luaL_loadfile(Lua::L, PROJECT_DIR "/src/test/test.lua");
 	if(lua_pcall(Lua::L, 0, LUA_MULTRET, 0) != LUA_OK) {
 		const int top = lua_gettop(Lua::L);
 		cerr << "Total on stack " << top << "\n";
