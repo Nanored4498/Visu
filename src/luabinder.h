@@ -87,6 +87,11 @@ void callGetter(int v) {
 	Stack<V&>::add([&]() { return * (V*)((char*)lua_touserdata(L, 1) + v); }); 
 }
 
+template<typename V>
+void callSetter(int v) {
+	* (V*)((char*)lua_touserdata(L, 1) + v) = Stack<V>::get(3);
+}
+
 struct HashName {
 	std::size_t operator()(const char* s) const {
 		std::size_t h = *s;
@@ -104,14 +109,23 @@ struct PredName {
 template<typename T>
 struct Class {
 
-	using Getter = void (*)(int);
-	using VarAcces = std::pair<int, Getter>;
+	struct VarAccess {
+		VarAccess(int v, void (*g)(int), void (*s)(int)): v(v), g(g), s(s) {}
+		inline void get() const { g(v); }
+		inline void set() const { s(v); }
+	private:
+		const int v;
+		void (*g)(int);
+		void (*s)(int);
+	};
 	
 	Class(const char* name) {
 		Class<T>::name = name;
 		luaL_newmetatable(L, name);
 		lua_pushcfunction(L, index);
 		lua_setfield(L, -2, "__index");
+		lua_pushcfunction(L, newindex);
+		lua_setfield(L, -2, "__newindex");
 		lua_pushcfunction(L, gc);
 		lua_setfield(L, -2, "__gc");
 		lua_setglobal(L, name);
@@ -145,7 +159,7 @@ struct Class {
 
 	template<typename V>
 	Class<T>& var(const char* name, V T::*v) {
-		vars.emplace(name, std::make_pair(*reinterpret_cast<int*>(&v), callGetter<V>));
+		vars.emplace(name, VarAccess(*reinterpret_cast<int*>(&v), callGetter<V>, callSetter<V>));
 		return *this;
 	}
 
@@ -153,7 +167,7 @@ struct Class {
 
 private:
 	static std::string name;
-	static std::unordered_map<const char*, VarAcces, HashName, PredName> vars;
+	static std::unordered_map<const char*, VarAccess, HashName, PredName> vars;
 
 	static int gc(lua_State *L) {
 		T* obj = (T*) luaL_checkudata(L, 1, name.c_str());
@@ -170,15 +184,27 @@ private:
 			const auto it = vars.find(lua_tostring(L, 2));
 			if(it != vars.end()) {
 				lua_pop(L, 1);
-				it->second.second(it->second.first);
+				it->second.get();
 			}
 		}
 		return 1;
 	}
+
+	static int newindex(lua_State *L) {
+		const auto it = vars.find(lua_tostring(L, 2));
+		if(it == vars.end()) {
+			lua_getmetatable(L, 1);
+			lua_pushstring(L, "__name");
+			lua_rawget(L, -2);
+			luaL_error(L, "tried to set a non-defined variable %s of class %s...\n", lua_tostring(L, 2), lua_tostring(L, -1));
+		}
+		it->second.set();
+		return 0;
+	}
 };
 
 template<typename T> std::string Class<T>::name = "Lua Class not defined";
-template<typename T> std::unordered_map<const char*, typename Class<T>::VarAcces, HashName, PredName> Class<T>::vars;
+template<typename T> std::unordered_map<const char*, typename Class<T>::VarAccess, HashName, PredName> Class<T>::vars;
 
 ///////////////
 // FUNCTIONS //
