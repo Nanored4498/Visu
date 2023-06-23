@@ -16,8 +16,13 @@ public:
 
 	inline operator VkInstance() { return instance; }
 
+	#ifndef NDEBUG
+	const static char* validation_layer;
+	#endif
+
 private:
 	VkInstance instance = nullptr;
+
 	#ifndef NDEBUG
 	VkDebugUtilsMessengerEXT debugMessenger = nullptr;
 	#endif

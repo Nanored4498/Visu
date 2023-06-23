@@ -8,6 +8,8 @@
 #include <vector>
 
 #ifndef NDEBUG
+const char* Instance::validation_layer = "VK_LAYER_KHRONOS_validation";
+
 static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
 	VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
 	[[maybe_unused]] VkDebugUtilsMessageTypeFlagsEXT messageType,
@@ -72,7 +74,6 @@ void Instance::init(const char* name, const Extensions &requiredExtensions) {
 
 	// Validation Layer
 	#ifndef NDEBUG
-		const char* validation_layer = "VK_LAYER_KHRONOS_validation";
 		const VkDebugUtilsMessengerCreateInfoEXT debugInfo {
 			.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT,
 			.pNext = nullptr,

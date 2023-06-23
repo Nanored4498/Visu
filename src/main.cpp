@@ -15,8 +15,8 @@ Device device;
 
 void init() {
 	instance.init(APP_NAME, Window::getRequiredExtensions());
-	window.init(APP_NAME, WIDTH, HEIGHT);
-	device.init(instance);
+	window.init(APP_NAME, WIDTH, HEIGHT, instance);
+	device.init(instance, window.getSurface());
 }
 
 void loop() {
