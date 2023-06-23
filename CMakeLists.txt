@@ -3,6 +3,10 @@ project(Visu)
 
 set(CMAKE_CXX_STANDARD 20)
 
+find_package(Lua REQUIRED)
+find_package(glfw3 REQUIRED)
+find_package(Vulkan REQUIRED)
+
 if(CMAKE_CXX_COMPILER_ID MATCHES GNU OR CMAKE_CXX_COMPILER_ID MATCHES Clang)
 	add_compile_options(
 		-fdiagnostics-color
@@ -10,10 +14,6 @@ if(CMAKE_CXX_COMPILER_ID MATCHES GNU OR CMAKE_CXX_COMPILER_ID MATCHES Clang)
 	set(CMAKE_CXX_FLAGS_RELEASE "-O3 -Wall -DNDEBUG")
 	set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g")
 endif()
-
-find_package(Lua REQUIRED)
-find_package(glfw3 REQUIRED)
-find_package(Vulkan REQUIRED)
 
 add_subdirectory(ext/ultimaille)
 
@@ -33,7 +33,7 @@ include_directories(
 	src
 )
 
-file(GLOB SOURCES src/*.cpp)
+file(GLOB SOURCES src/*.cpp src/graphics/*.cpp)
 add_executable(${PROJECT_NAME} ${SOURCES})
 target_link_libraries(${PROJECT_NAME}
 	${LUA_LIBRARIES}

@@ -1,44 +1,43 @@
 #include <iostream>
 #include <stdexcept>
 
-#define GLFW_INCLUDE_VULKAN
-#include <GLFW/glfw3.h>
+#include <graphics/window.h>
 
-constexpr uint32_t WIDTH = 800; 
-constexpr uint32_t HEIGHT = 600; 
-GLFWwindow *window = nullptr;
-void initWindow() {
-	glfwInit();
-	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-	glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
-	window = glfwCreateWindow(WIDTH, HEIGHT, "Visu", nullptr, nullptr);
-}
+const char* APP_NAME = "Visu";
+constexpr int WIDTH = 800;
+constexpr int HEIGHT = 600;
 
-void initVulkan() {
+Instance instance;
+Window window;
 
+void init() {
+	instance.init(APP_NAME, Window::getRequiredExtensions());
+	window.init(APP_NAME, WIDTH, HEIGHT);
 }
 
 void loop() {
-	while(!glfwWindowShouldClose(window)) {
+	while(!window.shouldClose()) {
 		glfwPollEvents();
 	}
 }
 
-void cleanup() {
-	glfwDestroyWindow(window);
-	window = nullptr;
-	glfwTerminate();
+void clean() {
+	window.clean();
 }
 
 int main() {
+	glfwInit();
+
 	try {
-		initWindow();
-		initVulkan();
+		init();
 		loop();
-		cleanup();
+		clean();
 	} catch(const std::exception &e) {
 		std::cerr << e.what() << std::endl;
 		return 1;
 	}
+
+	glfwTerminate();
+
 	return 0;
 }
