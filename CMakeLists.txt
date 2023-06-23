@@ -27,6 +27,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES GNU OR CMAKE_CXX_COMPILER_ID MATCHES Clang)
 endif()
 
 add_definitions(-DPROJECT_DIR=\"${CMAKE_SOURCE_DIR}\")
+add_definitions(-DBUILD_DIR=\"${CMAKE_BINARY_DIR}\")
 include_directories(
 	${LUA_INCLUDE_DIR}
 	ext/ultimaille

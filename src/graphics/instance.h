@@ -14,6 +14,8 @@ public:
 	void init(const char* name, const Extensions &requiredExtensions);
 	void clean();
 
+	inline operator VkInstance() { return instance; }
+
 private:
 	VkInstance instance = nullptr;
 	#ifndef NDEBUG
