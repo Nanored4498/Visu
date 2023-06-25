@@ -17,7 +17,15 @@ private:
 
 class Pipeline {
 public:
+	~Pipeline() { clean(); }
+
 	void init(const Device &device, const Shader &vertexShader, const Shader &fragmentShader);
+	void clean();
+
+private:
+	VkPipeline pipeline;
+	VkPipelineLayout layout;
+	VkDevice device;
 };
 
 }
