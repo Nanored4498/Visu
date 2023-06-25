@@ -16,6 +16,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES GNU OR CMAKE_CXX_COMPILER_ID MATCHES Clang)
 endif()
 
 add_subdirectory(ext/ultimaille)
+add_subdirectory(shaders)
 
 if(CMAKE_CXX_COMPILER_ID MATCHES GNU OR CMAKE_CXX_COMPILER_ID MATCHES Clang)
 	add_compile_options(
@@ -28,6 +29,7 @@ endif()
 
 add_definitions(-DPROJECT_DIR=\"${CMAKE_SOURCE_DIR}\")
 add_definitions(-DBUILD_DIR=\"${CMAKE_BINARY_DIR}\")
+add_definitions(-DSHADER_DIR=\"${CMAKE_BINARY_DIR}/shaders\")
 include_directories(
 	${LUA_INCLUDE_DIR}
 	ext/ultimaille

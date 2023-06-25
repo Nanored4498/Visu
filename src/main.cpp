@@ -3,6 +3,7 @@
 
 #include <config.h>
 #include <graphics/swapchain.h>
+#include <graphics/pipeline.h>
 
 const char* APP_NAME = "Visu";
 constexpr int WIDTH = 800;
@@ -12,12 +13,17 @@ gfx::Instance instance;
 gfx::Window window;
 gfx::Device device;
 gfx::Swapchain swapchain;
+gfx::Pipeline pipeline;
 
 void init() {
 	instance.init(APP_NAME, gfx::Window::getRequiredExtensions());
 	window.init(APP_NAME, WIDTH, HEIGHT, instance);
 	device.init(instance, window);
 	swapchain.init(device, window);
+	pipeline.init(device,
+		gfx::Shader(device, SHADER_DIR "/test.vert.spv"),
+		gfx::Shader(device, SHADER_DIR "/test.frag.spv")
+	);
 }
 
 void loop() {
