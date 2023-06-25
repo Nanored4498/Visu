@@ -2,6 +2,8 @@
 
 #include "util.h"
 
+namespace gfx {
+
 void Window::init(const char* name, int width, int height, Instance &instance) {
 	clean();
 	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
@@ -19,4 +21,6 @@ void Window::clean() {
 	}
 	glfwDestroyWindow(window);
 	window = nullptr;
+}
+
 }

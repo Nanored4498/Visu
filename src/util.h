@@ -12,15 +12,24 @@ struct AppError : public std::exception {
 };
 #define THROW_ERROR(msg) throw AppError((msg), __FILE__, __LINE__)
 
+#ifdef NDEBUG
 
-template <class A, class... Args>
-void debugMessage(const A& a, const Args&... args) {
-#ifndef NDEBUG
-	std::cerr << a;
-	((std::cerr << ' ' << args), ...);
-	std::cerr << std::endl;
+	#define DEBUG_HERE
+	#define DEBUG_MSG(...) {}
+	#define PRINT_INFO(...)
+	#define ASSERT(x)
+
+#else
+
+	template <class A, class... Args>
+	void debugMessage(const A& a, const Args&... args) {
+		std::cerr << a;
+		((std::cerr << ' ' << args), ...);
+		std::cerr << std::endl;
+	}
+	#define DEBUG_HERE std::cerr << "[DEBUG] " << __FILE__ << ':' << __LINE__ << std::endl
+	#define DEBUG_MSG(...) debugMessage(__VA_ARGS__, "\n    at", __FILE__ ":" + std::to_string(__LINE__))
+	#define PRINT_INFO(...) debugMessage(__VA_ARGS__)
+	#define ASSERT(x) if(!(x)) THROW_ERROR("Assertion failed '"#x"'")
+
 #endif
-}
-
-#define DEBUG_HERE std::cerr << "[DEBUG] " << __FILE__ << ':' << __LINE__ << std::endl
-#define DEBUG_MSG(...) debugMessage(__VA_ARGS__, "\n    at", __FILE__ ":" + std::to_string(__LINE__))

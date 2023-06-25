@@ -2,21 +2,22 @@
 #include <stdexcept>
 
 #include <config.h>
-#include <graphics/window.h>
-#include <graphics/device.h>
+#include <graphics/swapchain.h>
 
 const char* APP_NAME = "Visu";
 constexpr int WIDTH = 800;
 constexpr int HEIGHT = 600;
 
-Instance instance;
-Window window;
-Device device;
+gfx::Instance instance;
+gfx::Window window;
+gfx::Device device;
+gfx::Swapchain swapchain;
 
 void init() {
-	instance.init(APP_NAME, Window::getRequiredExtensions());
+	instance.init(APP_NAME, gfx::Window::getRequiredExtensions());
 	window.init(APP_NAME, WIDTH, HEIGHT, instance);
-	device.init(instance, window.getSurface());
+	device.init(instance, window);
+	swapchain.init(device, window);
 }
 
 void loop() {
@@ -26,7 +27,10 @@ void loop() {
 }
 
 void clean() {
+	swapchain.clean();
+	device.clean();
 	window.clean();
+	instance.clean();
 }
 
 int main() {

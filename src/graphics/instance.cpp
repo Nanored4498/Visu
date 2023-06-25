@@ -4,8 +4,10 @@
 
 #include <algorithm>
 #include <cstring>
-#include <stdint.h>
+#include <cstdint>
 #include <vector>
+
+namespace gfx {
 
 #ifndef NDEBUG
 const char* Instance::validation_layer = "VK_LAYER_KHRONOS_validation";
@@ -43,10 +45,7 @@ void Instance::init(const char* name, const Extensions &requiredExtensions) {
 		reqExtensions.emplace_back(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
 		reqExtensions.emplace_back(VK_KHR_get_physical_device_properties2);
 	#endif
-	uint32_t extensionCount = 0u;
-	vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, nullptr);
-	std::vector<VkExtensionProperties> extensions(extensionCount);
-	vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, extensions.data());
+	const std::vector<VkExtensionProperties> extensions = vkGetList(vkEnumerateInstanceExtensionProperties, nullptr);
 	for(const char* ext : reqExtensions)
 		if(std::ranges::find_if(extensions, [&](const VkExtensionProperties &e) { return !strcmp(e.extensionName, ext); }) == extensions.end())
 			THROW_ERROR(std::string("The required extension ") + ext + " is not available...");
@@ -87,10 +86,7 @@ void Instance::init(const char* name, const Extensions &requiredExtensions) {
 			.pfnUserCallback = debugCallback,
 			.pUserData = nullptr
 		};
-		uint32_t layerCount;
-		vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
-		std::vector<VkLayerProperties> layers(layerCount);
-		vkEnumerateInstanceLayerProperties(&layerCount, layers.data());
+		const std::vector<VkLayerProperties> layers = vkGetList(vkEnumerateInstanceLayerProperties);
 		const bool use_validation_layer = std::ranges::find_if(layers, [&](const VkLayerProperties &layer) {
 			return !strcmp(layer.layerName, validation_layer);
 		}) != layers.end();
@@ -108,7 +104,7 @@ void Instance::init(const char* name, const Extensions &requiredExtensions) {
 		THROW_ERROR("failed to create instance!");
 	
 	// Debug Callback
-	#ifndef NDEBUG__APPLE__
+	#ifndef NDEBUG
 		if(debug_utils && use_validation_layer) {
 			const auto func = (PFN_vkCreateDebugUtilsMessengerEXT) vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
 			if(func == nullptr || func(instance, &debugInfo, nullptr, &debugMessenger) != VK_SUCCESS)
@@ -128,4 +124,6 @@ void Instance::clean() {
 	#endif
 	vkDestroyInstance(instance, nullptr);
 	instance = nullptr;
+}
+
 }

@@ -5,8 +5,13 @@
 
 #include <algorithm>
 #include <cstring>
-#include <stdint.h>
+#include <cstdint>
+#include <limits>
 #include <vector>
+
+namespace gfx {
+
+const uint32_t QueueFamilies::NOT_AN_ID = std::numeric_limits<uint32_t>::max();
 
 static const char* RequiredExtensions[] {
 	VK_KHR_SWAPCHAIN_EXTENSION_NAME
@@ -15,10 +20,10 @@ static const char* RequiredExtensions[] {
 	#endif
 };
 
-void Device::init(Instance &instance, VkSurfaceKHR surface) {
+void Device::init(Instance &instance, const Window &window) {
 	clean();
-	pickPhysicalDevice(instance, surface);
-	createLogicalDevice(surface);
+	pickPhysicalDevice(instance, window);
+	createLogicalDevice(window);
 }
 
 void Device::clean() {
@@ -28,13 +33,10 @@ void Device::clean() {
 }
 
 static QueueFamilies findQueueFamilies(VkPhysicalDevice device, VkSurfaceKHR surface) {
-	uint32_t queueFamilyCount = 0;
-	vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, nullptr);
-	std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
-	vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, queueFamilies.data());
+	const std::vector<VkQueueFamilyProperties> queueFamilies = vkGetList(vkGetPhysicalDeviceQueueFamilyProperties, device);
 
 	QueueFamilies indices;
-	for(uint i = 0; i < queueFamilyCount; ++i) {
+	for(uint32_t i = 0; i < (uint32_t) queueFamilies.size(); ++i) {
 		if(queueFamilies[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) indices.graphicsId = i;
 		VkBool32 surfaceSupport = false;
 		vkGetPhysicalDeviceSurfaceSupportKHR(device, i, surface, &surfaceSupport);
@@ -64,40 +66,32 @@ static bool isPhysicalDeviceSuitable(VkPhysicalDevice gpu, VkSurfaceKHR surface)
 	if(!queueIndices.correct()) return false;
 
 	// Check extensions
-	uint32_t count;
-	vkEnumerateDeviceExtensionProperties(gpu, nullptr, &count, nullptr);
-	std::vector<VkExtensionProperties> extensions(count);
-	vkEnumerateDeviceExtensionProperties(gpu, nullptr, &count, extensions.data());
+	const std::vector<VkExtensionProperties> extensions = vkGetList(vkEnumerateDeviceExtensionProperties, gpu, nullptr);
 	for(const char* ext : RequiredExtensions)
 		if(std::ranges::find_if(extensions, [&](const VkExtensionProperties &e) { return !strcmp(e.extensionName, ext); }) == extensions.end())
 			return false;
 
 	// Check format and present mode availability
-	vkGetPhysicalDeviceSurfaceFormatsKHR(gpu, surface, &count, nullptr);
-	if(count == 0u) return false;
-	vkGetPhysicalDeviceSurfacePresentModesKHR(gpu, surface, &count, nullptr);
-	if(count == 0u) return false;
+	if(!vkGetListSize(vkGetPhysicalDeviceSurfaceFormatsKHR, gpu, surface)) return false;
+	if(!vkGetListSize(vkGetPhysicalDeviceSurfacePresentModesKHR, gpu, surface)) return false;
 
 	return true;
 }
 
-void Device::pickPhysicalDevice(Instance &instance, VkSurfaceKHR surface) {
-	uint32_t deviceCount = 0u;
-	vkEnumeratePhysicalDevices(instance, &deviceCount, nullptr);
-	if(!deviceCount) THROW_ERROR("failed to find a GPU with Vulkan support!");
-	std::vector<VkPhysicalDevice> devices(deviceCount);
-	vkEnumeratePhysicalDevices(instance, &deviceCount, devices.data());
+void Device::pickPhysicalDevice(Instance &instance, const Window &window) {
+	const std::vector<VkPhysicalDevice> devices = vkGetList(vkEnumeratePhysicalDevices, (VkInstance) instance);
+	if(devices.empty()) THROW_ERROR("failed to find a GPU with Vulkan support!");
 
 	for(VkPhysicalDevice candidate : devices)
-		if(isPhysicalDeviceSuitable(candidate, surface) && (!gpu || !strcmp(getPhysicalDeviceProperty(candidate).deviceName, Config::data.preferred_gpu)))
+		if(isPhysicalDeviceSuitable(candidate, window.getSurface()) && (!gpu || !strcmp(getPhysicalDeviceProperty(candidate).deviceName, Config::data.preferred_gpu)))
 			gpu = candidate;
 
 	if(!gpu) THROW_ERROR("failed to find a suitable GPU!");
-	debugMessage("Using Physical Device:", getPhysicalDeviceProperty(gpu).deviceName);
+	PRINT_INFO("Using Physical Device:", getPhysicalDeviceProperty(gpu).deviceName);
 }
 
-void Device::createLogicalDevice(VkSurfaceKHR surface) {
-	queueFamilies = findQueueFamilies(gpu, surface);
+void Device::createLogicalDevice(const Window &window) {
+	queueFamilies = findQueueFamilies(gpu, window.getSurface());
 	std::vector<VkDeviceQueueCreateInfo> queueInfos;
 	float queuePriority = 1.f;
 	const auto addQ = [&](uint32_t i) {
@@ -135,9 +129,11 @@ void Device::createLogicalDevice(VkSurfaceKHR surface) {
 		deviceInfo.ppEnabledLayerNames = &Instance::validation_layer;
 	#endif
 	if(vkCreateDevice(gpu, &deviceInfo, nullptr, &device) != VK_SUCCESS)
-		throw std::runtime_error("failed to create logical device!");
+		THROW_ERROR("failed to create logical device!");
 		
 	// Get queues
 	vkGetDeviceQueue(device, queueFamilies.graphicsId, 0, &graphicsQueue);
 	vkGetDeviceQueue(device, queueFamilies.presentId, 0, &presentQueue);
+}
+
 }

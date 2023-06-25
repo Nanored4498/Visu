@@ -4,6 +4,8 @@
 
 #include <GLFW/glfw3.h>
 
+namespace gfx {
+
 class Window {
 public:
 	~Window() { clean(); }
@@ -11,8 +13,12 @@ public:
 	void init(const char* name, int width, int height, Instance &instance);
 	void clean();
 
-	inline VkSurfaceKHR getSurface() { return surface; }
-	inline bool shouldClose() { return glfwWindowShouldClose(window); }
+	inline VkSurfaceKHR getSurface() const { return surface; }
+	inline bool shouldClose() const { return glfwWindowShouldClose(window); }
+
+	inline void getFramebufferSize(int &width, int &height) const {
+		glfwGetFramebufferSize(window, &width, &height);
+	}
 
 	inline static Extensions getRequiredExtensions() {
 		Extensions exts;
@@ -26,3 +32,5 @@ private:
 	VkSurfaceKHR surface = nullptr;
 	VkInstance instance;
 };
+
+}
