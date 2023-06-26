@@ -101,4 +101,30 @@ void Swapchain::clean() {
 	swapchain = nullptr;
 }
 
+uint32_t Swapchain::acquireNextImage(Semaphore &semaphore) {
+	uint32_t ind;
+	switch(vkAcquireNextImageKHR(device, swapchain, UINT64_MAX, semaphore, VK_NULL_HANDLE, &ind)) {
+	case VK_SUCCESS: case VK_SUBOPTIMAL_KHR:
+		return ind;
+	case VK_ERROR_OUT_OF_DATE_KHR:
+		return UINT32_MAX;
+	default:
+		THROW_ERROR("failed to acquire swapchain image!");
+	}
+}
+
+VkResult Swapchain::presentImage(uint32_t imIndex, VkQueue queue, Semaphore &semaphore) {
+	const VkPresentInfoKHR presentInfo {
+		.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
+		.pNext = nullptr,
+		.waitSemaphoreCount = 1u,
+		.pWaitSemaphores = &semaphore,
+		.swapchainCount = 1u,
+		.pSwapchains = &swapchain,
+		.pImageIndices = &imIndex,
+		.pResults = nullptr
+	};
+	return vkQueuePresentKHR(queue, &presentInfo);
+}
+
 }

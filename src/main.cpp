@@ -20,9 +20,8 @@ gfx::Swapchain swapchain;
 gfx::RenderPass renderPass;
 gfx::Pipeline pipeline;
 gfx::CommandBuffers cmdBuffs(device);
-std::vector<gfx::Semaphore> imageAvailableSemaphores, renderFinishedSemaphores;
-std::vector<gfx::Fence> inFlightFences;
-int currentFrame = 0;
+std::vector<gfx::CommandBuffer::SubmitSync> submitSyncs;
+std::size_t currentFrame = 0;
 
 void init() {
 	instance.init(APP_NAME, gfx::Window::getRequiredExtensions());
@@ -46,27 +45,28 @@ void init() {
 		.end();
 	
 	const std::size_t nFrames = std::clamp(renderPass.size(), 1ul, 2ul);
-	imageAvailableSemaphores.resize(nFrames);
-	renderFinishedSemaphores.resize(nFrames);
-	inFlightFences.resize(nFrames);
-	for(std::size_t i = 0; i < nFrames; ++i) {
-		imageAvailableSemaphores[i].init(device);
-		renderFinishedSemaphores[i].init(device);
-		inFlightFences[i].init(device, true);
-	}
+	submitSyncs.resize(nFrames);
+	for(auto &sync : submitSyncs) sync.init(device);
 }
 
 void loop() {
 	while(!window.shouldClose()) {
 		glfwPollEvents();
-
+		const uint32_t imIndex = swapchain.acquireNextImage(submitSyncs[currentFrame].imageAvailable);
+		if(imIndex == UINT32_MAX) {
+			// Recreate swapchain
+			continue;
+		}
+		cmdBuffs[imIndex].submit(device.getGraphicsQueue(), submitSyncs[currentFrame]);
+		const VkResult result = swapchain.presentImage(imIndex, device.getPresentQueue(), submitSyncs[currentFrame].renderFinished);
+		if(result != VK_SUCCESS) THROW_ERROR("failed to present swapchain image!");
+		if(++ currentFrame == submitSyncs.size()) currentFrame = 0ul;
 	}
 }
 
 void clean() {
-	imageAvailableSemaphores.clear();
-	renderFinishedSemaphores.clear();
-	inFlightFences.clear();
+	device.waitIdle();
+	submitSyncs.clear();
 	pipeline.clean();
 	renderPass.clean();
 	swapchain.clean();

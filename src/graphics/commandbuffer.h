@@ -3,6 +3,7 @@
 #include "debug.h"
 #include "renderpass.h"
 #include "pipeline.h"
+#include "sync.h"
 
 namespace gfx {
 
@@ -73,6 +74,35 @@ public:
 
 	inline CommandBuffer& draw(uint32_t vertexCount, uint32_t instanceCount, uint32_t firstVertex, uint32_t firstInstance) {
 		vkCmdDraw(cmd, vertexCount, instanceCount, firstVertex, firstInstance); return *this;
+	}
+
+	struct SubmitSync {
+		Semaphore imageAvailable, renderFinished;
+		Fence inFlight;
+		void init(const Device &device) {
+			imageAvailable.init(device);
+			renderFinished.init(device);
+			inFlight.init(device, true);
+		}
+	};
+
+	void submit(VkQueue queue, SubmitSync &sync) {
+		const VkPipelineStageFlags waitStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+		const VkSubmitInfo submitInfo {
+			.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+			.pNext = nullptr,
+			.waitSemaphoreCount = 1u,
+			.pWaitSemaphores = &sync.imageAvailable,
+			.pWaitDstStageMask = &waitStage,
+			.commandBufferCount = 1u,
+			.pCommandBuffers = &cmd,
+			.signalSemaphoreCount = 1u,
+			.pSignalSemaphores = &sync.renderFinished
+		};
+		sync.inFlight.wait();
+		sync.inFlight.reset();
+		if(vkQueueSubmit(queue, 1u, &submitInfo, sync.inFlight) != VK_SUCCESS)
+			THROW_ERROR("failed to submit draw command buffer!");
 	}
 
 private:

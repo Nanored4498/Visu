@@ -32,6 +32,10 @@ public:
 		if(device) vkFreeCommandBuffers(device, commandPool, size, reinterpret_cast<VkCommandBuffer*>(cmdBufs));
 	}
 
+	inline void waitIdle() const { vkDeviceWaitIdle(device); }
+
+	inline VkQueue getGraphicsQueue() const { return graphicsQueue; }
+	inline VkQueue getPresentQueue() const { return presentQueue; }
 	inline const QueueFamilies& getQueueFamilies() const { return queueFamilies; }
 
 	inline std::vector<VkSurfaceFormatKHR> getSurfaceFormats(const Window &window) const {

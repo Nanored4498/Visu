@@ -1,7 +1,7 @@
 #pragma once
 
-#include "device.h"
 #include "window.h"
+#include "sync.h"
 
 namespace gfx {
 
@@ -11,6 +11,9 @@ public:
 
 	void init(const Device &device, const Window &window);
 	void clean();
+
+	uint32_t acquireNextImage(Semaphore &semaphore);
+	VkResult presentImage(uint32_t imIndex, VkQueue queue, Semaphore &semaphore);
 
 	inline VkFormat getFormat() const { return format.format; }
 	inline VkExtent2D getExtent() const { return extent; }
