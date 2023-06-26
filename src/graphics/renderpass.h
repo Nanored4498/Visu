@@ -15,6 +15,7 @@ public:
 
 private:
 	VkRenderPass pass;
+	std::vector<VkFramebuffer> framebuffers;
 
 	VkDevice device;
 };

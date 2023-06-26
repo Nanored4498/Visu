@@ -116,10 +116,44 @@ void RenderPass::init(const Device &device, const Swapchain &swapchain) {
 
 	if(vkCreateRenderPass(this->device = device, &passInfo, nullptr, &pass) != VK_SUCCESS)
 		THROW_ERROR("failed to create render pass!");
+	
+
+	// Create framebuffers
+	VkFramebufferCreateInfo framebufferInfo {
+		.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
+		.pNext = nullptr,
+		.flags = 0u,
+		.renderPass = pass,
+		.attachmentCount = 0u,
+		.pAttachments = nullptr,
+		.width = swapchain.getWidth(),
+		.height = swapchain.getHeight(),
+		.layers = 1u
+	};
+	framebuffers.resize(swapchain.size());
+	for(std::size_t i = 0; i < framebuffers.size(); ++i) {
+		std::vector<VkImageView> attachments {
+			swapchain[i]
+			// , depthImage.getView()
+		};
+		/*
+		if(msaaSamples != VK_SAMPLE_COUNT_1_BIT) {
+			attachments.push_back(attachments[0]);
+			attachments[0] = msaaImage.getView();
+		}
+		*/
+		framebufferInfo.attachmentCount = (uint32_t) attachments.size(),
+		framebufferInfo.pAttachments = attachments.data();
+		if(vkCreateFramebuffer(device, &framebufferInfo, nullptr, &framebuffers[i]) != VK_SUCCESS)
+			THROW_ERROR("failed to create framebuffer!");
+	}
 }
 
 void RenderPass::clean() {
 	if(!pass) return;
+	for(VkFramebuffer framebuffer : framebuffers)
+		vkDestroyFramebuffer(device, framebuffer, nullptr);
+	framebuffers.clear();
 	vkDestroyRenderPass(device, pass, nullptr);
 	pass = nullptr;
 }
