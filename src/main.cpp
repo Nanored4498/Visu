@@ -29,6 +29,7 @@ void init() {
 		gfx::Shader(device, SHADER_DIR "/test.frag.spv"),
 		renderPass
 	);
+	cmdBuffs.resize(swapchain.size());
 	for(std::size_t i = 0; i < cmdBuffs.size(); ++i) {
 		cmdBuffs[i].begin()
 			.beginRenderPass(renderPass, i, swapchain.getExtent())

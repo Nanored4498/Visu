@@ -8,6 +8,8 @@ namespace gfx {
 
 class CommandBuffer {
 public:
+	CommandBuffer() {};
+
 	inline operator VkCommandBuffer() const { return cmd; }
 
 	CommandBuffer& begin() {
