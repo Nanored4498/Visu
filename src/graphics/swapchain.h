@@ -12,6 +12,8 @@ public:
 	void init(const Device &device, const Window &window);
 	void clean();
 
+	inline VkFormat getFormat() const { return format.format; }
+
 private:
 	VkSwapchainKHR swapchain;
 	VkSurfaceFormatKHR format;

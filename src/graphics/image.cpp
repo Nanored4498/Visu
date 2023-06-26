@@ -1,6 +1,6 @@
 #include "image.h"
 
-#include "util.h"
+#include "debug.h"
 
 namespace gfx {
 

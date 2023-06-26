@@ -1,6 +1,6 @@
 #include "pipeline.h"
 
-#include "util.h"
+#include "debug.h"
 
 #include <fstream>
 
@@ -32,7 +32,7 @@ void Shader::clean() {
 	shader = nullptr;
 }
 
-void Pipeline::init(const Device &device, const Shader &vertexShader, const Shader &fragmentShader) {
+void Pipeline::init(const Device &device, const Shader &vertexShader, const Shader &fragmentShader, const RenderPass &renderPass) {
 	// Create shader stages
 	VkPipelineShaderStageCreateInfo stages[2];
 	for(VkPipelineShaderStageCreateInfo &stageInfo : stages) {
@@ -186,12 +186,11 @@ void Pipeline::init(const Device &device, const Shader &vertexShader, const Shad
 		THROW_ERROR("failed to create pipeline layout!");
 
 	// Pipeline
-	/*
 	VkGraphicsPipelineCreateInfo pipelineInfo {
 		.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
 		.pNext = nullptr,
 		.flags = 0u,
-		.stageCount = sizeof(stages)/sizeof(stages[0]),
+		.stageCount = sizeof(stages)/sizeof(stages[0]), // shader stages
 		.pStages = stages,
 		.pVertexInputState = &vertexInputInfo,
 		.pInputAssemblyState = &assemblyInfo,
@@ -199,7 +198,8 @@ void Pipeline::init(const Device &device, const Shader &vertexShader, const Shad
 		.pViewportState = &viewportInfo,
 		.pRasterizationState = &rasterInfo,
 		.pMultisampleState = &multiSampleInfo,
-		.pDepthStencilState = nullptr // &depthStencilInfo,
+		// .pDepthStencilState = &depthStencilInfo,
+		.pDepthStencilState = nullptr,
 		.pColorBlendState = &colorBlendInfo,
 		.pDynamicState = &dynamicInfo,
 		.layout = layout,
@@ -211,13 +211,12 @@ void Pipeline::init(const Device &device, const Shader &vertexShader, const Shad
 
 	if(vkCreateGraphicsPipelines(this->device = device, VK_NULL_HANDLE, 1u, &pipelineInfo, nullptr, &pipeline) != VK_SUCCESS)
 		THROW_ERROR("failed to create graphics pipeline!");
-		*/
 }
 
 void Pipeline::clean() {
 	if(!pipeline) return;
-	vkDestroyPipeline(device, pipeline, nullptr);
 	vkDestroyPipelineLayout(device, layout, nullptr);
+	vkDestroyPipeline(device, pipeline, nullptr);
 	pipeline = nullptr;
 }
 

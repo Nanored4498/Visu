@@ -1,6 +1,6 @@
 #include "window.h"
 
-#include "util.h"
+#include "debug.h"
 
 namespace gfx {
 

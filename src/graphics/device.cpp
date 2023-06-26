@@ -1,6 +1,6 @@
 #include "device.h"
 
-#include "util.h"
+#include "debug.h"
 #include "config.h"
 
 #include <algorithm>

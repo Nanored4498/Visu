@@ -1,6 +1,6 @@
 #include "instance.h"
 
-#include "util.h"
+#include "debug.h"
 
 #include <algorithm>
 #include <cstring>

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "device.h"
+#include "renderpass.h"
 
 namespace gfx {
 
@@ -19,7 +19,7 @@ class Pipeline {
 public:
 	~Pipeline() { clean(); }
 
-	void init(const Device &device, const Shader &vertexShader, const Shader &fragmentShader);
+	void init(const Device &device, const Shader &vertexShader, const Shader &fragmentShader, const RenderPass &renderPass);
 	void clean();
 
 private:

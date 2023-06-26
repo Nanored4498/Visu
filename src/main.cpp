@@ -2,7 +2,7 @@
 #include <stdexcept>
 
 #include <config.h>
-#include <graphics/swapchain.h>
+#include <graphics/renderpass.h>
 #include <graphics/pipeline.h>
 
 const char* APP_NAME = "Visu";
@@ -13,6 +13,7 @@ gfx::Instance instance;
 gfx::Window window;
 gfx::Device device;
 gfx::Swapchain swapchain;
+gfx::RenderPass renderPass;
 gfx::Pipeline pipeline;
 
 void init() {
@@ -20,9 +21,11 @@ void init() {
 	window.init(APP_NAME, WIDTH, HEIGHT, instance);
 	device.init(instance, window);
 	swapchain.init(device, window);
+	renderPass.init(device, swapchain);
 	pipeline.init(device,
 		gfx::Shader(device, SHADER_DIR "/test.vert.spv"),
-		gfx::Shader(device, SHADER_DIR "/test.frag.spv")
+		gfx::Shader(device, SHADER_DIR "/test.frag.spv"),
+		renderPass
 	);
 }
 
@@ -33,6 +36,8 @@ void loop() {
 }
 
 void clean() {
+	pipeline.clean();
+	renderPass.clean();
 	swapchain.clean();
 	device.clean();
 	window.clean();
