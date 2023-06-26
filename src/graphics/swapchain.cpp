@@ -59,7 +59,7 @@ void Swapchain::init(const Device &device, const Window &window) {
 		.pNext = nullptr,
 		.flags = 0u,
 		.surface = window.getSurface(),
-		.minImageCount = capabilities.maxImageCount && swapInfo.minImageCount >= capabilities.maxImageCount ?
+		.minImageCount = capabilities.maxImageCount && capabilities.minImageCount >= capabilities.maxImageCount ?
 							capabilities.maxImageCount
 							: capabilities.minImageCount + 1,
 		.imageFormat = format.format,

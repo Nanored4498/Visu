@@ -4,6 +4,7 @@
 #include <config.h>
 #include <graphics/renderpass.h>
 #include <graphics/pipeline.h>
+#include <graphics/commandbuffer.h>
 
 const char* APP_NAME = "Visu";
 constexpr int WIDTH = 800;
@@ -15,6 +16,7 @@ gfx::Device device;
 gfx::Swapchain swapchain;
 gfx::RenderPass renderPass;
 gfx::Pipeline pipeline;
+gfx::CommandBuffers cmdBuffs(device);
 
 void init() {
 	instance.init(APP_NAME, gfx::Window::getRequiredExtensions());
@@ -27,6 +29,15 @@ void init() {
 		gfx::Shader(device, SHADER_DIR "/test.frag.spv"),
 		renderPass
 	);
+	for(std::size_t i = 0; i < cmdBuffs.size(); ++i) {
+		cmdBuffs[i].begin()
+			.beginRenderPass(renderPass, i, swapchain.getExtent())
+				.bindPipeline(pipeline)
+				.setViewport(swapchain.getExtent())
+				.draw(3, 1, 0, 0)
+			.endRenderPass()
+		.end();
+	}
 }
 
 void loop() {

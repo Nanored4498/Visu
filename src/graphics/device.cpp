@@ -1,7 +1,8 @@
 #include "device.h"
 
-#include "debug.h"
+#include "commandbuffer.h"
 #include "config.h"
+#include "debug.h"
 
 #include <algorithm>
 #include <cstring>
@@ -19,18 +20,6 @@ static const char* RequiredExtensions[] {
 	, VK_KHR_portability_subset
 	#endif
 };
-
-void Device::init(Instance &instance, const Window &window) {
-	clean();
-	pickPhysicalDevice(instance, window);
-	createLogicalDevice(window);
-}
-
-void Device::clean() {
-	if(!device) return;
-	vkDestroyDevice(device, nullptr);
-	device = nullptr;
-}
 
 static QueueFamilies findQueueFamilies(VkPhysicalDevice device, VkSurfaceKHR surface) {
 	const std::vector<VkQueueFamilyProperties> queueFamilies = vkGetList(vkGetPhysicalDeviceQueueFamilyProperties, device);
@@ -78,7 +67,10 @@ static bool isPhysicalDeviceSuitable(VkPhysicalDevice gpu, VkSurfaceKHR surface)
 	return true;
 }
 
-void Device::pickPhysicalDevice(Instance &instance, const Window &window) {
+void Device::init(Instance &instance, const Window &window) {
+	clean();
+
+	// Create physical device
 	const std::vector<VkPhysicalDevice> devices = vkGetList(vkEnumeratePhysicalDevices, (VkInstance) instance);
 	if(devices.empty()) THROW_ERROR("failed to find a GPU with Vulkan support!");
 
@@ -88,9 +80,8 @@ void Device::pickPhysicalDevice(Instance &instance, const Window &window) {
 
 	if(!gpu) THROW_ERROR("failed to find a suitable GPU!");
 	PRINT_INFO("Using Physical Device:", getPhysicalDeviceProperty(gpu).deviceName);
-}
 
-void Device::createLogicalDevice(const Window &window) {
+	// Choose queue families
 	queueFamilies = findQueueFamilies(gpu, window.getSurface());
 	std::vector<VkDeviceQueueCreateInfo> queueInfos;
 	float queuePriority = 1.f;
@@ -112,6 +103,7 @@ void Device::createLogicalDevice(const Window &window) {
 	// vkGetPhysicalDeviceFeatures(gpu, &deviceFeatures);
 	// features.samplerAnisotropy = deviceFeatures.samplerAnisotropy;
 
+	// Create logical device
 	VkDeviceCreateInfo deviceInfo {
 		.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
 		.pNext = nullptr,
@@ -134,6 +126,42 @@ void Device::createLogicalDevice(const Window &window) {
 	// Get queues
 	vkGetDeviceQueue(device, queueFamilies.graphicsId, 0, &graphicsQueue);
 	vkGetDeviceQueue(device, queueFamilies.presentId, 0, &presentQueue);
+
+	// Create command pool
+	VkCommandPoolCreateInfo poolInfo {
+		.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
+		.pNext = nullptr,
+		.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
+		.queueFamilyIndex = queueFamilies.graphicsId
+	};
+
+	if(vkCreateCommandPool(device, &poolInfo, nullptr, &commandPool) != VK_SUCCESS)
+		THROW_ERROR("failed to create command pool!");
+}
+
+void Device::clean() {
+	if(!device) return;
+	vkDestroyCommandPool(device, commandPool, nullptr);
+	vkDestroyDevice(device, nullptr);
+	device = nullptr;
+}
+
+CommandBuffer Device::createCommandBuffer(bool primary) const {
+	CommandBuffer cmdBuf;
+	allocCommandBuffers(&cmdBuf, 1u, primary);
+	return cmdBuf;
+}
+
+void Device::allocCommandBuffers(CommandBuffer *cmdBufs, uint32_t size, bool primary) const {
+	const VkCommandBufferAllocateInfo allocInfo {
+		.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+		.pNext = nullptr,
+		.commandPool = commandPool,
+		.level = primary ? VK_COMMAND_BUFFER_LEVEL_PRIMARY : VK_COMMAND_BUFFER_LEVEL_SECONDARY,
+		.commandBufferCount = size
+	};
+	if(vkAllocateCommandBuffers(device, &allocInfo, reinterpret_cast<VkCommandBuffer*>(cmdBufs)) != VK_SUCCESS)
+		THROW_ERROR("failed to allocate command buffers!");
 }
 
 }

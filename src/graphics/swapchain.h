@@ -13,6 +13,7 @@ public:
 	void clean();
 
 	inline VkFormat getFormat() const { return format.format; }
+	inline VkExtent2D getExtent() const { return extent; }
 	inline uint32_t getWidth() const { return extent.width; }
 	inline uint32_t getHeight() const { return extent.height; }
 	inline std::size_t size() const { return imageViews.size(); }

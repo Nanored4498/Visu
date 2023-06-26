@@ -15,6 +15,8 @@ struct QueueFamilies {
 	inline operator const uint32_t*() const { return reinterpret_cast<const uint32_t*>(this); }
 };
 
+class CommandBuffer;
+
 class Device {
 public:
 	~Device() { clean(); }
@@ -23,6 +25,12 @@ public:
 	void clean();
 
 	inline operator VkDevice() const { return device; }
+
+	CommandBuffer createCommandBuffer(bool primary=true) const;
+	void allocCommandBuffers(CommandBuffer *cmdBufs, uint32_t size, bool primary=true) const;
+	inline void freeCommandBuffers(CommandBuffer *cmdBufs, uint32_t size) const {
+		if(device) vkFreeCommandBuffers(device, commandPool, size, reinterpret_cast<VkCommandBuffer*>(cmdBufs));
+	}
 
 	inline const QueueFamilies& getQueueFamilies() const { return queueFamilies; }
 
@@ -47,10 +55,7 @@ private:
 	QueueFamilies queueFamilies;
 	VkQueue graphicsQueue, presentQueue;
 
-	void pickPhysicalDevice(Instance &instance, const Window &window);
-	void createLogicalDevice(const Window &window);
-	void chooseImageFormat(const Window &window);
-	void choosePresentMode(const Window &window);
+	VkCommandPool commandPool;
 };
 
 }

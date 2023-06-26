@@ -22,6 +22,8 @@ public:
 	void init(const Device &device, const Shader &vertexShader, const Shader &fragmentShader, const RenderPass &renderPass);
 	void clean();
 
+	inline operator VkPipeline() const { return pipeline; }
+
 private:
 	VkPipeline pipeline;
 	VkPipelineLayout layout;

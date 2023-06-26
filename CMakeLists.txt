@@ -15,7 +15,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES GNU OR CMAKE_CXX_COMPILER_ID MATCHES Clang)
 	set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g")
 endif()
 
-add_subdirectory(ext/ultimaille)
+add_subdirectory(ext)
 add_subdirectory(shaders)
 
 if(CMAKE_CXX_COMPILER_ID MATCHES GNU OR CMAKE_CXX_COMPILER_ID MATCHES Clang)
