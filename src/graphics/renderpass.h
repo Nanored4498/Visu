@@ -13,7 +13,8 @@ public:
 
 	inline operator VkRenderPass() const { return pass; }
 
-	inline VkFramebuffer frameBuffer(std::size_t i) const { return framebuffers[i]; }
+	inline std::size_t size() const { return framebuffers.size(); }
+	inline VkFramebuffer framebuffer(std::size_t i) const { return framebuffers[i]; }
 
 private:
 	VkRenderPass pass;

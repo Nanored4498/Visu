@@ -5,6 +5,9 @@
 #include <graphics/renderpass.h>
 #include <graphics/pipeline.h>
 #include <graphics/commandbuffer.h>
+#include <graphics/sync.h>
+
+#include <algorithm>
 
 const char* APP_NAME = "Visu";
 constexpr int WIDTH = 800;
@@ -17,6 +20,9 @@ gfx::Swapchain swapchain;
 gfx::RenderPass renderPass;
 gfx::Pipeline pipeline;
 gfx::CommandBuffers cmdBuffs(device);
+std::vector<gfx::Semaphore> imageAvailableSemaphores, renderFinishedSemaphores;
+std::vector<gfx::Fence> inFlightFences;
+int currentFrame = 0;
 
 void init() {
 	instance.init(APP_NAME, gfx::Window::getRequiredExtensions());
@@ -29,8 +35,8 @@ void init() {
 		gfx::Shader(device, SHADER_DIR "/test.frag.spv"),
 		renderPass
 	);
-	cmdBuffs.resize(swapchain.size());
-	for(std::size_t i = 0; i < cmdBuffs.size(); ++i) {
+	cmdBuffs.resize(renderPass.size());
+	for(std::size_t i = 0; i < cmdBuffs.size(); ++i)
 		cmdBuffs[i].begin()
 			.beginRenderPass(renderPass, i, swapchain.getExtent())
 				.bindPipeline(pipeline)
@@ -38,16 +44,29 @@ void init() {
 				.draw(3, 1, 0, 0)
 			.endRenderPass()
 		.end();
+	
+	const std::size_t nFrames = std::clamp(renderPass.size(), 1ul, 2ul);
+	imageAvailableSemaphores.resize(nFrames);
+	renderFinishedSemaphores.resize(nFrames);
+	inFlightFences.resize(nFrames);
+	for(std::size_t i = 0; i < nFrames; ++i) {
+		imageAvailableSemaphores[i].init(device);
+		renderFinishedSemaphores[i].init(device);
+		inFlightFences[i].init(device, true);
 	}
 }
 
 void loop() {
 	while(!window.shouldClose()) {
 		glfwPollEvents();
+
 	}
 }
 
 void clean() {
+	imageAvailableSemaphores.clear();
+	renderFinishedSemaphores.clear();
+	inFlightFences.clear();
 	pipeline.clean();
 	renderPass.clean();
 	swapchain.clean();

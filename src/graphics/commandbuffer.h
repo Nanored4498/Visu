@@ -37,7 +37,7 @@ public:
 			.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
 			.pNext = nullptr,
 			.renderPass = renderPass,
-			.framebuffer = renderPass.frameBuffer(frame),
+			.framebuffer = renderPass.framebuffer(frame),
 			.renderArea = {
 				.offset = {0, 0},
 				.extent = extent
