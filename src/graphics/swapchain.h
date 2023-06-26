@@ -9,7 +9,7 @@ class Swapchain {
 public:
 	~Swapchain() { clean(); }
 
-	void init(const Device &device, const Window &window);
+	void init(const Device &device, const Window &window, bool firstInit=false);
 	void clean();
 
 	uint32_t acquireNextImage(Semaphore &semaphore);

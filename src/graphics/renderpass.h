@@ -9,7 +9,9 @@ public:
 	~RenderPass() { clean(); }
 
 	void init(const Device &device, const Swapchain &swapchain);
+	void initFramebuffers(const Swapchain &swapchain);
 	void clean();
+	void cleanFramebuffers();
 
 	inline operator VkRenderPass() const { return pass; }
 

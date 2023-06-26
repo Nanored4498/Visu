@@ -113,8 +113,10 @@ void RenderPass::init(const Device &device, const Swapchain &swapchain) {
 	if(vkCreateRenderPass(this->device = device, &passInfo, nullptr, &pass) != VK_SUCCESS)
 		THROW_ERROR("failed to create render pass!");
 	
+	initFramebuffers(swapchain);
+}
 
-	// Create framebuffers
+void RenderPass::initFramebuffers(const Swapchain &swapchain) {
 	VkFramebufferCreateInfo framebufferInfo {
 		.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
 		.pNext = nullptr,
@@ -147,11 +149,15 @@ void RenderPass::init(const Device &device, const Swapchain &swapchain) {
 
 void RenderPass::clean() {
 	if(!pass) return;
+	cleanFramebuffers();
+	vkDestroyRenderPass(device, pass, nullptr);
+	pass = nullptr;
+}
+
+void RenderPass::cleanFramebuffers() {
 	for(VkFramebuffer framebuffer : framebuffers)
 		vkDestroyFramebuffer(device, framebuffer, nullptr);
 	framebuffers.clear();
-	vkDestroyRenderPass(device, pass, nullptr);
-	pass = nullptr;
 }
 
 }

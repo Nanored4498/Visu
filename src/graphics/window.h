@@ -15,6 +15,9 @@ public:
 
 	inline VkSurfaceKHR getSurface() const { return surface; }
 	inline bool shouldClose() const { return glfwWindowShouldClose(window); }
+	inline bool isFramebufferResized() const { return framebufferResized; }
+
+	inline void resetFramebufferResized() { framebufferResized = false; }
 
 	inline void getFramebufferSize(int &width, int &height) const {
 		glfwGetFramebufferSize(window, &width, &height);
@@ -28,9 +31,13 @@ public:
 
 
 private:
+	static void framebufferSizeCallback(GLFWwindow *window, int width, int height);
+
 	GLFWwindow *window = nullptr;
 	VkSurfaceKHR surface = nullptr;
 	VkInstance instance;
+	
+	bool framebufferResized;
 };
 
 }

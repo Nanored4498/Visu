@@ -9,33 +9,35 @@
 
 namespace gfx {
 
-void Swapchain::init(const Device &device, const Window &window) {
+void Swapchain::init(const Device &device, const Window &window, bool firstInit) {
 	clean();
 
-	// Image format
-	constexpr VkFormat desiredFormat = VK_FORMAT_B8G8R8A8_SRGB;
-	constexpr VkColorSpaceKHR desiredColorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
-	const std::vector<VkSurfaceFormatKHR> formats = device.getSurfaceFormats(window);
-	format = formats[0];
-	for(const VkSurfaceFormatKHR &f : formats) {
-		int score = int(f.format == desiredFormat) + int(f.colorSpace == desiredColorSpace);
-		if(!score) continue;
-		format = f;
-		if(score == 2) break;
-	}
-	if(format.format != desiredFormat) DEBUG_MSG("WARNING: Desired image format (B8G8R8A8_SRGB) not available: using", format.format, "instead...");
-	if(format.colorSpace != desiredColorSpace) DEBUG_MSG("WARNING: Desired color space (SRGB_NONLINEAR_KHR) not available: using", format.colorSpace, "instead...");
+	if(firstInit) {
+		// Image format
+		constexpr VkFormat desiredFormat = VK_FORMAT_B8G8R8A8_SRGB;
+		constexpr VkColorSpaceKHR desiredColorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
+		const std::vector<VkSurfaceFormatKHR> formats = device.getSurfaceFormats(window);
+		format = formats[0];
+		for(const VkSurfaceFormatKHR &f : formats) {
+			int score = int(f.format == desiredFormat) + int(f.colorSpace == desiredColorSpace);
+			if(!score) continue;
+			format = f;
+			if(score == 2) break;
+		}
+		if(format.format != desiredFormat) DEBUG_MSG("WARNING: Desired image format (B8G8R8A8_SRGB) not available: using", format.format, "instead...");
+		if(format.colorSpace != desiredColorSpace) DEBUG_MSG("WARNING: Desired color space (SRGB_NONLINEAR_KHR) not available: using", format.colorSpace, "instead...");
 
-	// Present mode
-	const std::vector<VkPresentModeKHR> presents = device.getPresentModes(window);
-	if(std::ranges::find(presents, VK_PRESENT_MODE_MAILBOX_KHR) != presents.end()) {
-		presentMode = VK_PRESENT_MODE_MAILBOX_KHR;
-	} else if(std::ranges::find(presents, VK_PRESENT_MODE_FIFO_KHR) != presents.end()) {
-		presentMode = VK_PRESENT_MODE_FIFO_KHR;
-		DEBUG_MSG("WARNING: Desired present mode (Mailbox) not available: using FIFO instead...");
-	} else /*Should never happened as FIFO is guaranted*/ {
-		presentMode = presents[0];
-		DEBUG_MSG("WARNING: Desired present mode (Mailbox) not available: using", presentMode,"instead...");
+		// Present mode
+		const std::vector<VkPresentModeKHR> presents = device.getPresentModes(window);
+		if(std::ranges::find(presents, VK_PRESENT_MODE_MAILBOX_KHR) != presents.end()) {
+			presentMode = VK_PRESENT_MODE_MAILBOX_KHR;
+		} else if(std::ranges::find(presents, VK_PRESENT_MODE_FIFO_KHR) != presents.end()) {
+			presentMode = VK_PRESENT_MODE_FIFO_KHR;
+			DEBUG_MSG("WARNING: Desired present mode (Mailbox) not available: using FIFO instead...");
+		} else /*Should never happened as FIFO is guaranted*/ {
+			presentMode = presents[0];
+			DEBUG_MSG("WARNING: Desired present mode (Mailbox) not available: using", presentMode,"instead...");
+		}
 	}
 
 	// Extent
@@ -73,7 +75,8 @@ void Swapchain::init(const Device &device, const Window &window) {
 		.preTransform = capabilities.currentTransform, // To apply rotation or mirror to image
 		.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR, // To use alpha
 		.presentMode = presentMode,
-		.clipped = VK_TRUE, // Don't render pixels hidden by other windows 
+		.clipped = VK_TRUE, // Don't render pixels hidden by other windows
+		// TODO: Use it for recreation
 		.oldSwapchain = VK_NULL_HANDLE
 	};
 	// Update sharing mode if several queues

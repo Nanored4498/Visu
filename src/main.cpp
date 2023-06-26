@@ -20,20 +20,11 @@ gfx::Swapchain swapchain;
 gfx::RenderPass renderPass;
 gfx::Pipeline pipeline;
 gfx::CommandBuffers cmdBuffs(device);
+// TODO: improve sync
 std::vector<gfx::CommandBuffer::SubmitSync> submitSyncs;
 std::size_t currentFrame = 0;
 
-void init() {
-	instance.init(APP_NAME, gfx::Window::getRequiredExtensions());
-	window.init(APP_NAME, WIDTH, HEIGHT, instance);
-	device.init(instance, window);
-	swapchain.init(device, window);
-	renderPass.init(device, swapchain);
-	pipeline.init(device,
-		gfx::Shader(device, SHADER_DIR "/test.vert.spv"),
-		gfx::Shader(device, SHADER_DIR "/test.frag.spv"),
-		renderPass
-	);
+void initCmdBuffs() {
 	cmdBuffs.resize(renderPass.size());
 	for(std::size_t i = 0; i < cmdBuffs.size(); ++i)
 		cmdBuffs[i].begin()
@@ -43,10 +34,40 @@ void init() {
 				.draw(3, 1, 0, 0)
 			.endRenderPass()
 		.end();
+}
+
+void init() {
+	instance.init(APP_NAME, gfx::Window::getRequiredExtensions());
+	window.init(APP_NAME, WIDTH, HEIGHT, instance);
+	device.init(instance, window);
+	swapchain.init(device, window, true);
+	renderPass.init(device, swapchain);
+	pipeline.init(device,
+		gfx::Shader(device, SHADER_DIR "/test.vert.spv"),
+		gfx::Shader(device, SHADER_DIR "/test.frag.spv"),
+		renderPass
+	);
+	initCmdBuffs();
 	
 	const std::size_t nFrames = std::clamp(renderPass.size(), 1ul, 2ul);
 	submitSyncs.resize(nFrames);
 	for(auto &sync : submitSyncs) sync.init(device);
+}
+
+void updateSwapchain() {
+	int w, h;
+	window.getFramebufferSize(w, h);
+	while(!w || !h) {
+		window.getFramebufferSize(w, h);
+		glfwWaitEvents();
+	} 
+	window.resetFramebufferResized();
+	device.waitIdle();
+	renderPass.cleanFramebuffers();
+	swapchain.init(device, window);
+	renderPass.initFramebuffers(swapchain);
+	initCmdBuffs();
+	// TODO: check sync is still valid
 }
 
 void loop() {
@@ -54,12 +75,14 @@ void loop() {
 		glfwPollEvents();
 		const uint32_t imIndex = swapchain.acquireNextImage(submitSyncs[currentFrame].imageAvailable);
 		if(imIndex == UINT32_MAX) {
-			// Recreate swapchain
+			updateSwapchain();
 			continue;
 		}
 		cmdBuffs[imIndex].submit(device.getGraphicsQueue(), submitSyncs[currentFrame]);
 		const VkResult result = swapchain.presentImage(imIndex, device.getPresentQueue(), submitSyncs[currentFrame].renderFinished);
-		if(result != VK_SUCCESS) THROW_ERROR("failed to present swapchain image!");
+		if(window.isFramebufferResized() || result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR)
+			updateSwapchain();
+		else if(result != VK_SUCCESS) THROW_ERROR("failed to present swapchain image!");
 		if(++ currentFrame == submitSyncs.size()) currentFrame = 0ul;
 	}
 }
