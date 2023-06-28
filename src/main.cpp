@@ -2,10 +2,17 @@
 #include <stdexcept>
 
 #include <config.h>
+
 #include <graphics/renderpass.h>
 #include <graphics/pipeline.h>
 #include <graphics/commandbuffer.h>
 #include <graphics/sync.h>
+
+#define LUA_BINDER_IMPL
+#include <lua/luabinder.h>
+#include <lua/ultimaille.h>
+
+#include <ultimaille/io/by_extension.h>
 
 #include <algorithm>
 
@@ -98,9 +105,19 @@ void clean() {
 	instance.clean();
 }
 
-int main() {
+int main(int argc, const char* argv[]) {
 	Config::load();
 	glfwInit();
+
+	Lua::new_state();
+	Lua::bindUltimaille();
+
+	std::vector<std::pair<UM::SurfaceAttributes, UM::Triangles>> meshes;
+	Lua::setGlobal("meshes", meshes);
+	for(int i = 1; i < argc; ++i) {
+		meshes.emplace_back();
+		meshes.back().first = UM::read_by_extension(argv[i], meshes.back().second);
+	}
 
 	try {
 		init();
