@@ -18,7 +18,7 @@ public:
 	inline std::size_t size() const { return framebuffers.size(); }
 	inline VkFramebuffer framebuffer(std::size_t i) const { return framebuffers[i]; }
 
-private:
+protected:
 	VkRenderPass pass;
 	std::vector<VkFramebuffer> framebuffers;
 

@@ -9,8 +9,10 @@ class Swapchain {
 public:
 	~Swapchain() { clean(); }
 
-	void init(const Device &device, const Window &window, bool firstInit=false);
+	void init(const Device &device, const Window &window);
+	void recreate(const Device &device, const Window &window);
 	void clean();
+	void cleanOld();
 
 	uint32_t acquireNextImage(Semaphore &semaphore);
 	VkResult presentImage(uint32_t imIndex, VkQueue queue, Semaphore &semaphore);
@@ -23,13 +25,16 @@ public:
 	inline VkImageView operator[](std::size_t i) const { return imageViews[i]; }
 
 private:
-	VkSwapchainKHR swapchain;
+	VkSwapchainKHR swapchain = nullptr, old = nullptr;
 	VkSurfaceFormatKHR format;
 	VkPresentModeKHR presentMode;
 	VkExtent2D extent;
 	std::vector<VkImageView> imageViews;
 
 	VkDevice device;
+
+	void __init(const Device &device, const Window &window);
+	void __cleanViews();
 };
 
 }

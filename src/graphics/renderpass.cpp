@@ -117,6 +117,7 @@ void RenderPass::init(const Device &device, const Swapchain &swapchain) {
 }
 
 void RenderPass::initFramebuffers(const Swapchain &swapchain) {
+	cleanFramebuffers();
 	VkFramebufferCreateInfo framebufferInfo {
 		.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
 		.pNext = nullptr,

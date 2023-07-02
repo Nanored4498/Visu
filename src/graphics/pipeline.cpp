@@ -164,7 +164,7 @@ void Pipeline::init(const Device &device, const Shader &vertexShader, const Shad
 		.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
 		.pNext = nullptr,
 		.flags = 0u,
-		.dynamicStateCount = sizeof(dynamicStates)/sizeof(dynamicStates[0]),
+		.dynamicStateCount = std::size(dynamicStates),
 		.pDynamicStates = dynamicStates
 	};
 
@@ -174,7 +174,7 @@ void Pipeline::init(const Device &device, const Shader &vertexShader, const Shad
 		.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
 		.pNext = nullptr,
 		.flags = 0u,
-		// .setLayoutCount = sizeof(layouts) / sizeof(layouts[0]),
+		// .setLayoutCount = std::size(layouts),
 		// .pSetLayouts = layouts,
 		.setLayoutCount = 0u,
 		.pSetLayouts = nullptr,
@@ -190,7 +190,7 @@ void Pipeline::init(const Device &device, const Shader &vertexShader, const Shad
 		.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
 		.pNext = nullptr,
 		.flags = 0u,
-		.stageCount = sizeof(stages)/sizeof(stages[0]), // shader stages
+		.stageCount = std::size(stages), // shader stages
 		.pStages = stages,
 		.pVertexInputState = &vertexInputInfo,
 		.pInputAssemblyState = &assemblyInfo,

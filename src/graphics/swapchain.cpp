@@ -9,37 +9,39 @@
 
 namespace gfx {
 
-void Swapchain::init(const Device &device, const Window &window, bool firstInit) {
+void Swapchain::init(const Device &device, const Window &window) {
 	clean();
 
-	if(firstInit) {
-		// Image format
-		constexpr VkFormat desiredFormat = VK_FORMAT_B8G8R8A8_SRGB;
-		constexpr VkColorSpaceKHR desiredColorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
-		const std::vector<VkSurfaceFormatKHR> formats = device.getSurfaceFormats(window);
-		format = formats[0];
-		for(const VkSurfaceFormatKHR &f : formats) {
-			int score = int(f.format == desiredFormat) + int(f.colorSpace == desiredColorSpace);
-			if(!score) continue;
-			format = f;
-			if(score == 2) break;
-		}
-		if(format.format != desiredFormat) DEBUG_MSG("WARNING: Desired image format (B8G8R8A8_SRGB) not available: using", format.format, "instead...");
-		if(format.colorSpace != desiredColorSpace) DEBUG_MSG("WARNING: Desired color space (SRGB_NONLINEAR_KHR) not available: using", format.colorSpace, "instead...");
+	// Image format
+	constexpr VkFormat desiredFormat = VK_FORMAT_B8G8R8A8_SRGB;
+	constexpr VkColorSpaceKHR desiredColorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
+	const std::vector<VkSurfaceFormatKHR> formats = device.getSurfaceFormats(window);
+	format = formats[0];
+	for(const VkSurfaceFormatKHR &f : formats) {
+		int score = int(f.format == desiredFormat) + int(f.colorSpace == desiredColorSpace);
+		if(!score) continue;
+		format = f;
+		if(score == 2) break;
+	}
+	if(format.format != desiredFormat) DEBUG_MSG("WARNING: Desired image format (B8G8R8A8_SRGB) not available: using", format.format, "instead...");
+	if(format.colorSpace != desiredColorSpace) DEBUG_MSG("WARNING: Desired color space (SRGB_NONLINEAR_KHR) not available: using", format.colorSpace, "instead...");
 
-		// Present mode
-		const std::vector<VkPresentModeKHR> presents = device.getPresentModes(window);
-		if(std::ranges::find(presents, VK_PRESENT_MODE_MAILBOX_KHR) != presents.end()) {
-			presentMode = VK_PRESENT_MODE_MAILBOX_KHR;
-		} else if(std::ranges::find(presents, VK_PRESENT_MODE_FIFO_KHR) != presents.end()) {
-			presentMode = VK_PRESENT_MODE_FIFO_KHR;
-			DEBUG_MSG("WARNING: Desired present mode (Mailbox) not available: using FIFO instead...");
-		} else /*Should never happened as FIFO is guaranted*/ {
-			presentMode = presents[0];
-			DEBUG_MSG("WARNING: Desired present mode (Mailbox) not available: using", presentMode,"instead...");
-		}
+	// Present mode
+	const std::vector<VkPresentModeKHR> presents = device.getPresentModes(window);
+	if(std::ranges::find(presents, VK_PRESENT_MODE_MAILBOX_KHR) != presents.end()) {
+		presentMode = VK_PRESENT_MODE_MAILBOX_KHR;
+	} else if(std::ranges::find(presents, VK_PRESENT_MODE_FIFO_KHR) != presents.end()) {
+		presentMode = VK_PRESENT_MODE_FIFO_KHR;
+		DEBUG_MSG("WARNING: Desired present mode (Mailbox) not available: using FIFO instead...");
+	} else /*Should never happened as FIFO is guaranted*/ {
+		presentMode = presents[0];
+		DEBUG_MSG("WARNING: Desired present mode (Mailbox) not available: using", presentMode,"instead...");
 	}
 
+	__init(device, window);
+}
+
+void Swapchain::__init(const Device &device, const Window &window) {
 	// Extent
 	const VkSurfaceCapabilitiesKHR capabilities = device.getCapabilities(window);
 	if(capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max()) {
@@ -76,8 +78,7 @@ void Swapchain::init(const Device &device, const Window &window, bool firstInit)
 		.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR, // To use alpha
 		.presentMode = presentMode,
 		.clipped = VK_TRUE, // Don't render pixels hidden by other windows
-		// TODO: Use it for recreation
-		.oldSwapchain = VK_NULL_HANDLE
+		.oldSwapchain = old
 	};
 	// Update sharing mode if several queues
 	if(device.getQueueFamilies().graphicsId != device.getQueueFamilies().presentId) {
@@ -95,13 +96,30 @@ void Swapchain::init(const Device &device, const Window &window, bool firstInit)
 		imageViews[i] = Image::createView(device, images[i], 2, format.format, VK_IMAGE_ASPECT_COLOR_BIT);
 }
 
+void Swapchain::recreate(const Device &device, const Window &window) {
+	old = swapchain;
+	__cleanViews();
+	__init(device, window);
+}
+
 void Swapchain::clean() {
+	cleanOld();
 	if(!swapchain) return;
+	__cleanViews();
+	vkDestroySwapchainKHR(device, swapchain, nullptr);
+	swapchain = nullptr;
+}
+
+void Swapchain::cleanOld() {
+	if(!old) return;
+	vkDestroySwapchainKHR(device, old, nullptr);
+	old = nullptr;
+}
+
+void Swapchain::__cleanViews() {
 	for(VkImageView view : imageViews)
 		vkDestroyImageView(device, view, nullptr);
 	imageViews.clear();
-	vkDestroySwapchainKHR(device, swapchain, nullptr);
-	swapchain = nullptr;
 }
 
 uint32_t Swapchain::acquireNextImage(Semaphore &semaphore) {

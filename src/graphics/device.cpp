@@ -113,7 +113,7 @@ void Device::init(Instance &instance, const Window &window) {
 		.pQueueCreateInfos = queueInfos.data(),
 		.enabledLayerCount = 0u,
 		.ppEnabledLayerNames = nullptr,
-		.enabledExtensionCount = sizeof(RequiredExtensions) / sizeof(RequiredExtensions[0]),
+		.enabledExtensionCount = std::size(RequiredExtensions),
 		.ppEnabledExtensionNames = RequiredExtensions,
 		.pEnabledFeatures = &features
 	};

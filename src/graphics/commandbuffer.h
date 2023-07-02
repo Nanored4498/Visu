@@ -24,6 +24,17 @@ public:
 		return *this;
 	}
 
+	CommandBuffer& beginOT() {
+		constexpr const VkCommandBufferBeginInfo beginInfo {
+			.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+			.pNext = nullptr,
+			.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
+			.pInheritanceInfo = nullptr // Not usefull here because the buffer is primary
+		};
+		if(vkBeginCommandBuffer(cmd, &beginInfo) != VK_SUCCESS) THROW_ERROR("failed to begin recording one time command buffer!");
+		return *this;
+	}
+
 	inline CommandBuffer& end() {
 		if(vkEndCommandBuffer(cmd) != VK_SUCCESS) THROW_ERROR("failed to record command buffer!");
 		return *this;
@@ -43,7 +54,7 @@ public:
 				.offset = {0, 0},
 				.extent = swapchain.getExtent()
 			},
-			.clearValueCount = sizeof(clearValues) / sizeof(clearValues[0]),
+			.clearValueCount = std::size(clearValues),
 			.pClearValues = clearValues
 		};
 		vkCmdBeginRenderPass(cmd, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
@@ -92,7 +103,7 @@ public:
 		}
 	};
 
-	void submit(VkQueue queue, Semaphore &wait, Semaphore &signal, Fence &fence) {
+	static void submit(CommandBuffer *cmds, uint32_t count, VkQueue queue, Semaphore &wait, Semaphore &signal, Fence &fence) {
 		const VkPipelineStageFlags waitStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
 		const VkSubmitInfo submitInfo {
 			.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
@@ -100,15 +111,17 @@ public:
 			.waitSemaphoreCount = wait ? 1u : 0u,
 			.pWaitSemaphores = &wait,
 			.pWaitDstStageMask = &waitStage,
-			.commandBufferCount = 1u,
-			.pCommandBuffers = &cmd,
+			.commandBufferCount = count,
+			.pCommandBuffers = reinterpret_cast<VkCommandBuffer*>(cmds),
 			.signalSemaphoreCount = signal ? 1u : 0u,
 			.pSignalSemaphores = &signal
 		};
-		fence.wait();
-		fence.reset();
 		if(vkQueueSubmit(queue, 1u, &submitInfo, fence) != VK_SUCCESS)
 			THROW_ERROR("failed to submit draw command buffer!");
+	}
+
+	inline void submit(VkQueue queue, Semaphore &wait, Semaphore &signal, Fence &fence) {
+		submit(this, 1, queue, wait, signal, fence);
 	}
 
 	void submit(VkQueue queue) {
@@ -131,31 +144,25 @@ private:
 	VkCommandBuffer cmd;
 };
 
-class CommandBufferAllocator : public std::allocator<CommandBuffer> {
+class CommandBuffers {
 public:
-	using std::allocator<CommandBuffer>::allocator;
-	CommandBufferAllocator(const Device &device, bool primary): std::allocator<CommandBuffer>(), device(device), primary(primary) {}
-	CommandBuffer* allocate(std::size_t n) {
-		CommandBuffer* p = std::allocator<CommandBuffer>::allocate(n);
-		device.allocCommandBuffers(p, n, primary);
-		return p;
+	// ~CommandBuffers() { clear(); }
+	inline void init(const Device &device) { this->device = &device; }
+	inline void resize(const std::size_t size, const bool primary=true) {
+		const std::size_t s = cmds.size();
+		if(size < s) device->freeCommandBuffers(cmds.data() + size, s-size);
+		cmds.resize(size);
+		if(s < size) device->allocCommandBuffers(cmds.data() + s, size-s, primary); 
 	}
-	void deallocate(CommandBuffer *p, std::size_t n) {
-		device.freeCommandBuffers(p, n);
-		std::allocator<CommandBuffer>::deallocate(p, n);
-	}
-	template<class U> struct rebind {
-		using other = std::conditional_t<std::is_same_v<U, CommandBuffer>, CommandBufferAllocator, std::allocator<U>>;
-	};
+	inline void clear() { resize(0); }
+	inline std::size_t size() const { return cmds.size(); }
+	inline CommandBuffer& operator[](std::size_t n) { return cmds[n]; }
+	inline auto begin() { return cmds.begin(); }
+	inline auto end() { return cmds.end(); }
 
 private:
-	const Device &device;
-	const bool primary;
-};
-
-class CommandBuffers : public std::vector<CommandBuffer, CommandBufferAllocator>  {
-public:
-	CommandBuffers(const Device &device, bool primary=true): std::vector<CommandBuffer, CommandBufferAllocator>(CommandBufferAllocator(device, primary)) {}
+	std::vector<CommandBuffer> cmds;
+	const Device *device = nullptr;
 };
 
 }
