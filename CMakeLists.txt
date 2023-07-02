@@ -33,6 +33,7 @@ add_definitions(-DSHADER_DIR=\"${CMAKE_BINARY_DIR}/shaders\")
 include_directories(
 	${LUA_INCLUDE_DIR}
 	ext/ultimaille
+	ext/imgui
 	src
 )
 
@@ -43,6 +44,7 @@ target_link_libraries(${PROJECT_NAME}
 	ultimaille
 	glfw
 	vulkan
+	imgui
 )
 
 

@@ -117,7 +117,7 @@ int callMetClosure0(Ret(U::**g)(Args...), std::integer_sequence<int, inds...>) {
 		(Stack<U>::get(1).**g)(Stack<Args>::get(inds + 2)...);
 		return 0;
 	} else {
-		Stack<Ret>::add([&](){ return (Stack<U>::get(1).**g)(Stack<Args>::get(inds + 2)...); });
+		Stack<Ret>::add([&]()->Ret{ return (Stack<U>::get(1).**g)(Stack<Args>::get(inds + 2)...); });
 		return 1;
 	}
 }

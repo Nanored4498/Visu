@@ -13,6 +13,8 @@ public:
 	void init(const char* name, int width, int height, Instance &instance);
 	void clean();
 
+	inline operator GLFWwindow*() const { return window; }
+
 	inline VkSurfaceKHR getSurface() const { return surface; }
 	inline bool shouldClose() const { return glfwWindowShouldClose(window); }
 	inline bool isFramebufferResized() const { return framebufferResized; }

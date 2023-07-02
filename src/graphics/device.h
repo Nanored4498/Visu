@@ -28,12 +28,16 @@ public:
 
 	CommandBuffer createCommandBuffer(bool primary=true) const;
 	void allocCommandBuffers(CommandBuffer *cmdBufs, uint32_t size, bool primary=true) const;
+	inline void freeCommandBuffer(CommandBuffer& cmdBuf) const {
+		if(device) vkFreeCommandBuffers(device, commandPool, 1u, reinterpret_cast<VkCommandBuffer*>(&cmdBuf));
+	}
 	inline void freeCommandBuffers(CommandBuffer *cmdBufs, uint32_t size) const {
 		if(device) vkFreeCommandBuffers(device, commandPool, size, reinterpret_cast<VkCommandBuffer*>(cmdBufs));
 	}
 
 	inline void waitIdle() const { vkDeviceWaitIdle(device); }
 
+	inline VkPhysicalDevice getGPU() const { return gpu; }
 	inline VkQueue getGraphicsQueue() const { return graphicsQueue; }
 	inline VkQueue getPresentQueue() const { return presentQueue; }
 	inline const QueueFamilies& getQueueFamilies() const { return queueFamilies; }

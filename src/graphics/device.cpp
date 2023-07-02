@@ -75,7 +75,8 @@ void Device::init(Instance &instance, const Window &window) {
 	if(devices.empty()) THROW_ERROR("failed to find a GPU with Vulkan support!");
 
 	for(VkPhysicalDevice candidate : devices)
-		if(isPhysicalDeviceSuitable(candidate, window.getSurface()) && (!gpu || !strcmp(getPhysicalDeviceProperty(candidate).deviceName, Config::data.preferred_gpu)))
+		if(isPhysicalDeviceSuitable(candidate, window.getSurface())
+			&& (!gpu || !strcmp(getPhysicalDeviceProperty(candidate).deviceName, Config::data.preferred_gpu)))
 			gpu = candidate;
 
 	if(!gpu) THROW_ERROR("failed to find a suitable GPU!");

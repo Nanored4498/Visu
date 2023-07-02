@@ -29,7 +29,7 @@ public:
 		return *this;
 	}
 
-	CommandBuffer& beginRenderPass(const RenderPass &renderPass, const std::size_t frame, const VkExtent2D &extent) {
+	CommandBuffer& beginRenderPass(const RenderPass &renderPass, const Swapchain &swapchain, const std::size_t frame) {
 		constexpr const VkClearValue clearValues[] = {
 			{.color={.float32={0.f, 0.f, 0.f, 1.f}}},
 			{.depthStencil={1.f, 0u}}
@@ -41,7 +41,7 @@ public:
 			.framebuffer = renderPass.framebuffer(frame),
 			.renderArea = {
 				.offset = {0, 0},
-				.extent = extent
+				.extent = swapchain.getExtent()
 			},
 			.clearValueCount = sizeof(clearValues) / sizeof(clearValues[0]),
 			.pClearValues = clearValues
@@ -79,29 +79,51 @@ public:
 	struct SubmitSync {
 		Semaphore imageAvailable, renderFinished;
 		Fence inFlight;
+		~SubmitSync() { clean(); }
 		void init(const Device &device) {
 			imageAvailable.init(device);
 			renderFinished.init(device);
 			inFlight.init(device, true);
 		}
+		void clean() {
+			imageAvailable.clean();
+			renderFinished.clean();
+			inFlight.clean();
+		}
 	};
 
-	void submit(VkQueue queue, SubmitSync &sync) {
+	void submit(VkQueue queue, Semaphore &wait, Semaphore &signal, Fence &fence) {
 		const VkPipelineStageFlags waitStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
 		const VkSubmitInfo submitInfo {
 			.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
 			.pNext = nullptr,
-			.waitSemaphoreCount = 1u,
-			.pWaitSemaphores = &sync.imageAvailable,
+			.waitSemaphoreCount = wait ? 1u : 0u,
+			.pWaitSemaphores = &wait,
 			.pWaitDstStageMask = &waitStage,
 			.commandBufferCount = 1u,
 			.pCommandBuffers = &cmd,
-			.signalSemaphoreCount = 1u,
-			.pSignalSemaphores = &sync.renderFinished
+			.signalSemaphoreCount = signal ? 1u : 0u,
+			.pSignalSemaphores = &signal
 		};
-		sync.inFlight.wait();
-		sync.inFlight.reset();
-		if(vkQueueSubmit(queue, 1u, &submitInfo, sync.inFlight) != VK_SUCCESS)
+		fence.wait();
+		fence.reset();
+		if(vkQueueSubmit(queue, 1u, &submitInfo, fence) != VK_SUCCESS)
+			THROW_ERROR("failed to submit draw command buffer!");
+	}
+
+	void submit(VkQueue queue) {
+		const VkSubmitInfo submitInfo {
+			.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+			.pNext = nullptr,
+			.waitSemaphoreCount = 0u,
+			.pWaitSemaphores = nullptr,
+			.pWaitDstStageMask = nullptr,
+			.commandBufferCount = 1u,
+			.pCommandBuffers = &cmd,
+			.signalSemaphoreCount = 0u,
+			.pSignalSemaphores = nullptr
+		};
+		if(vkQueueSubmit(queue, 1u, &submitInfo, nullptr) != VK_SUCCESS)
 			THROW_ERROR("failed to submit draw command buffer!");
 	}
 

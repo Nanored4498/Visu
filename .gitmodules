@@ -1,3 +1,7 @@
 [submodule "ext/ultimaille"]
 	path = ext/ultimaille
-	url = git@github.com:ssloy/ultimaille.git
+	url = https://github.com/ssloy/ultimaille.git
+
+[submodule "ext/imgui"]
+	path = ext/imgui
+	url = https://github.com/ocornut/imgui.git
