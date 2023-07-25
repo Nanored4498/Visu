@@ -1,6 +1,11 @@
+// Copyright (C) 2023, Coudert--Osmont Yoann
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// See <https://www.gnu.org/licenses/>
+
 #include "pipeline.h"
 
 #include "debug.h"
+#include "vertexbuffer.h"
 
 #include <fstream>
 
@@ -48,20 +53,16 @@ void Pipeline::init(const Device &device, const Shader &vertexShader, const Shad
 	stages[1].module = fragmentShader;
 		
 	// Input
-	// auto bindingDescription = Vertex::getBindingDescription();
-	// auto attributeDescriptions = Vertex::getAttributeDescription();
+	const auto bindingDescription = Vertex::getBindingDescription();
+	const auto attributeDescriptions = Vertex::getAttributeDescription();
 	VkPipelineVertexInputStateCreateInfo vertexInputInfo {
 		.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
 		.pNext = nullptr,
 		.flags = 0u,
-		// .vertexBindingDescriptionCount = 1u,
-		// .pVertexBindingDescriptions = &bindingDescription,
-		// .vertexAttributeDescriptionCount = (uint) attributeDescriptions.size(),
-		// .pVertexAttributeDescriptions = attributeDescriptions.data()
-		.vertexBindingDescriptionCount = 0u,
-		.pVertexBindingDescriptions = nullptr,
-		.vertexAttributeDescriptionCount = 0u,
-		.pVertexAttributeDescriptions = nullptr
+		.vertexBindingDescriptionCount = 1u,
+		.pVertexBindingDescriptions = &bindingDescription,
+		.vertexAttributeDescriptionCount = (uint) attributeDescriptions.size(),
+		.pVertexAttributeDescriptions = attributeDescriptions.data()
 	};
 	VkPipelineInputAssemblyStateCreateInfo assemblyInfo {
 		.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,

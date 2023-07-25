@@ -8,6 +8,7 @@
 #include <graphics/commandbuffer.h>
 #include <graphics/sync.h>
 #include <graphics/gui.h>
+#include <graphics/vertexbuffer.h>
 
 #include <imgui.h>
 #include <backends/imgui_impl_glfw.h>
@@ -32,35 +33,42 @@ gfx::Swapchain swapchain;
 gfx::RenderPass renderPass;
 gfx::Pipeline pipeline;
 gfx::GUI gui;
+gfx::VertexBuffer vertexBuffer;
 gfx::CommandBuffers cmdBuffs;
 gfx::Semaphore imageAvailable[2], renderFinished[2];
 std::vector<gfx::Fence> cmdSubmitted;
 int currentFrame = 0;
 
+gfx::Vertex verts[] {
+	{ {}, gfx::vec2f(0.5, 0.5),  gfx::vec3f(1.0f, 0.0f, 0.0f) },
+	{ {}, gfx::vec2f(0.0, -0.5), gfx::vec3f(0.0f, 1.0f, 0.0f) },
+	{ {}, gfx::vec2f(-0.5, 0.5), gfx::vec3f(0.0f, 0.0f, 1.0f) }
+};
+
 
 static void drawImGui() {
-  // Start the Dear ImGui frame
-  ImGui_ImplVulkan_NewFrame();
-  ImGui_ImplGlfw_NewFrame();
-  ImGui::NewFrame();
+	// Start the Dear ImGui frame
+	ImGui_ImplVulkan_NewFrame();
+	ImGui_ImplGlfw_NewFrame();
+	ImGui::NewFrame();
 
-  static float f = 0.0f;
-  static int counter = 0;
+	static float f = 0.0f;
+	static int counter = 0;
 
-  ImGui::Begin("Renderer Options");
-  ImGui::Text("This is some useful text.");
-  ImGui::SliderFloat("float", &f, 0.0f, 1.0f);
-  if (ImGui::Button("Button")) {
-    counter++;
-  }
-  ImGui::SameLine();
-  ImGui::Text("counter = %d", counter);
+	ImGui::Begin("Renderer Options");
+	ImGui::Text("This is some useful text.");
+	ImGui::SliderFloat("float", &f, 0.0f, 1.0f);
+	if (ImGui::Button("Button")) {
+	  counter++;
+	}
+	ImGui::SameLine();
+	ImGui::Text("counter = %d", counter);
 
-  ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate,
-              ImGui::GetIO().Framerate);
-  ImGui::End();
+	ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate,
+				ImGui::GetIO().Framerate);
+	ImGui::End();
 
-  ImGui::Render();
+	ImGui::Render();
 }
 
 void initCmdBuffs() {
@@ -70,6 +78,7 @@ void initCmdBuffs() {
 			.beginRenderPass(renderPass, swapchain, i)
 				.bindPipeline(pipeline)
 				.setViewport(swapchain.getExtent())
+				.bindVertexBuffer(vertexBuffer)
 				.draw(3, 1, 0, 0)
 			.endRenderPass()
 		.end();
@@ -87,6 +96,8 @@ void init() {
 		renderPass
 	);
 	gui.init(instance, device, window, swapchain);
+	vertexBuffer.init(device, sizeof(verts));
+	vertexBuffer.fillWithData(verts, sizeof(verts));
 	cmdBuffs.init(device);
 	initCmdBuffs();
 	for(gfx::Semaphore &s : imageAvailable) s.init(device);
@@ -142,6 +153,7 @@ void clean() {
 	cmdSubmitted.clear();
 	for(gfx::Semaphore &s : renderFinished) s.clean();
 	for(gfx::Semaphore &s : imageAvailable) s.clean();
+	vertexBuffer.clean();
 	gui.clean();
 	pipeline.clean();
 	renderPass.clean();

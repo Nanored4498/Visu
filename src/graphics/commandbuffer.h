@@ -3,6 +3,7 @@
 #include "debug.h"
 #include "renderpass.h"
 #include "pipeline.h"
+#include "vertexbuffer.h"
 #include "sync.h"
 
 namespace gfx {
@@ -82,6 +83,13 @@ public:
 	}
 
 	inline CommandBuffer& bindPipeline(const Pipeline &pipeline) { vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline); return *this; }
+
+	inline CommandBuffer& bindVertexBuffer(const VertexBuffer &vertexBuffer) {
+		const VkBuffer buffer = vertexBuffer;
+		const VkDeviceSize offset = 0u;
+		vkCmdBindVertexBuffers(cmd, 0u, 1u, &buffer, &offset);
+		return *this;
+	}
 
 	inline CommandBuffer& draw(uint32_t vertexCount, uint32_t instanceCount, uint32_t firstVertex, uint32_t firstInstance) {
 		vkCmdDraw(cmd, vertexCount, instanceCount, firstVertex, firstInstance); return *this;

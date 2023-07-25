@@ -122,6 +122,7 @@ void GUI::init(Instance &instance, const Device &device, const Window &window, c
 
 	// Context
 	ImGui::CreateContext();
+	ImGui::GetIO().IniFilename = nullptr;
   	ImGui_ImplGlfw_InitForVulkan(window, true);
 	ImGui_ImplVulkan_InitInfo info {
 		.Instance = instance,
@@ -129,10 +130,14 @@ void GUI::init(Instance &instance, const Device &device, const Window &window, c
 		.Device = device,
 		.QueueFamily = device.getQueueFamilies().graphicsId,
 		.Queue = device.getGraphicsQueue(),
+		.PipelineCache = nullptr,
 		.DescriptorPool = descriptorPool,
-		.MinImageCount = 3,
-		.ImageCount = 3,
-		.MSAASamples = VK_SAMPLE_COUNT_1_BIT
+		.Subpass = 0u,
+		.MinImageCount = 3u,
+		.ImageCount = 3u,
+		.MSAASamples = VK_SAMPLE_COUNT_1_BIT,
+		.Allocator = nullptr,
+		.CheckVkResultFn = nullptr
 	};
 	ImGui_ImplVulkan_Init(&info, renderPass);
 

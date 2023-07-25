@@ -165,4 +165,13 @@ void Device::allocCommandBuffers(CommandBuffer *cmdBufs, uint32_t size, bool pri
 		THROW_ERROR("failed to allocate command buffers!");
 }
 
+uint32_t Device::findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) const {
+	VkPhysicalDeviceMemoryProperties memProp;
+	vkGetPhysicalDeviceMemoryProperties(gpu, &memProp);
+	for(uint32_t i = 0u; i < memProp.memoryTypeCount; ++i)
+		if(((1 << i) & typeFilter) && (memProp.memoryTypes[i].propertyFlags & properties) == properties)
+			return i;
+	THROW_ERROR("failed to find suitable memory type!");
+}
+
 }

@@ -22,7 +22,7 @@ public:
 	CommandBuffer& getCommand(const Swapchain &swapchain, uint32_t i);
 
 private:
-	VkDescriptorPool descriptorPool;
+	VkDescriptorPool descriptorPool = nullptr;
 	GUIRenderPass renderPass;
 	CommandBuffers cmdBufs;
 	VkDevice device;

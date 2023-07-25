@@ -1,3 +1,7 @@
+// Copyright (C) 2023, Coudert--Osmont Yoann
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// See <https://www.gnu.org/licenses/>
+
 #pragma once
 
 #include "instance.h"
@@ -53,6 +57,8 @@ public:
 		vkGetPhysicalDeviceSurfaceCapabilitiesKHR(gpu, window.getSurface(), &capabilities);
 		return capabilities;
 	}
+
+	uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) const;
 
 private:
 	VkPhysicalDevice gpu = nullptr;
