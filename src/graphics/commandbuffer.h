@@ -95,6 +95,16 @@ public:
 		vkCmdDraw(cmd, vertexCount, instanceCount, firstVertex, firstInstance); return *this;
 	}
 
+	inline CommandBuffer& copyBuffer(const Buffer &src, Buffer &dst, VkDeviceSize size) {
+		const VkBufferCopy region {
+			.srcOffset = 0u,
+			.dstOffset = 0u,
+			.size = size
+		};
+		vkCmdCopyBuffer(cmd, src, dst, 1u, &region);
+		return *this;
+	}
+
 	struct SubmitSync {
 		Semaphore imageAvailable, renderFinished;
 		Fence inFlight;
@@ -132,7 +142,7 @@ public:
 		submit(this, 1, queue, wait, signal, fence);
 	}
 
-	void submit(VkQueue queue) {
+	inline void submitOT(const Device &device, VkQueue queue) {
 		const VkSubmitInfo submitInfo {
 			.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
 			.pNext = nullptr,
@@ -144,8 +154,11 @@ public:
 			.signalSemaphoreCount = 0u,
 			.pSignalSemaphores = nullptr
 		};
-		if(vkQueueSubmit(queue, 1u, &submitInfo, nullptr) != VK_SUCCESS)
+		if(vkQueueSubmit(queue, 1u, &submitInfo, device.getOTFence()) != VK_SUCCESS)
 			THROW_ERROR("failed to submit draw command buffer!");
+		vkWaitForFences(device, 1u, &device.getOTFence(), VK_TRUE, UINT64_MAX);
+		vkResetFences(device, 1u, &device.getOTFence());
+		device.freeCommandBuffers(this, 1u);
 	}
 
 private:

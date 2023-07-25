@@ -138,10 +138,20 @@ void Device::init(Instance &instance, const Window &window) {
 
 	if(vkCreateCommandPool(device, &poolInfo, nullptr, &commandPool) != VK_SUCCESS)
 		THROW_ERROR("failed to create command pool!");
+
+	// Create OT fence
+	const VkFenceCreateInfo fenceInfo {
+		.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
+		.pNext = nullptr,
+		.flags = 0u
+	};
+	if(vkCreateFence(this->device = device, &fenceInfo, nullptr, &OTFence) != VK_SUCCESS)
+		THROW_ERROR("failed to create OT fence!");
 }
 
 void Device::clean() {
 	if(!device) return;
+	vkDestroyFence(device, OTFence, nullptr);
 	vkDestroyCommandPool(device, commandPool, nullptr);
 	vkDestroyDevice(device, nullptr);
 	device = nullptr;

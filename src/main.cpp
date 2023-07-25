@@ -58,9 +58,7 @@ static void drawImGui() {
 	ImGui::Begin("Renderer Options");
 	ImGui::Text("This is some useful text.");
 	ImGui::SliderFloat("float", &f, 0.0f, 1.0f);
-	if (ImGui::Button("Button")) {
-	  counter++;
-	}
+	if(ImGui::Button("Button")) counter++;
 	ImGui::SameLine();
 	ImGui::Text("counter = %d", counter);
 
@@ -79,7 +77,7 @@ void initCmdBuffs() {
 				.bindPipeline(pipeline)
 				.setViewport(swapchain.getExtent())
 				.bindVertexBuffer(vertexBuffer)
-				.draw(3, 1, 0, 0)
+				.draw(std::size(verts), 1, 0, 0)
 			.endRenderPass()
 		.end();
 }
@@ -96,8 +94,7 @@ void init() {
 		renderPass
 	);
 	gui.init(instance, device, window, swapchain);
-	vertexBuffer.init(device, sizeof(verts));
-	vertexBuffer.fillWithData(verts, sizeof(verts));
+	vertexBuffer.init(device, verts, sizeof(verts));
 	cmdBuffs.init(device);
 	initCmdBuffs();
 	for(gfx::Semaphore &s : imageAvailable) s.init(device);

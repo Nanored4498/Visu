@@ -1,6 +1,7 @@
 #include "buffer.h"
 
 #include "debug.h"
+#include "commandbuffer.h"
 
 namespace gfx {
 
@@ -42,17 +43,8 @@ void Buffer::clean() {
 	buffer = nullptr;
 }
 
-void copyBuffer(Device &device, Buffer &src, Buffer &dst, VkDeviceSize size) {
-	/*
-	VkCommandBuffer cmdBuf = device.createOneTimeCommandBuffer();
-	const VkBufferCopy region {
-		.srcOffset = 0u,
-		.dstOffset = 0u,
-		.size = size
-	};
-	vkCmdCopyBuffer(cmdBuf, src, dst, 1u, &region);
-	device.submitOneTimeCommandBuffer(cmdBuf);
-	*/
+void Buffer::copy(const Device &device, const Buffer &src, Buffer &dst, VkDeviceSize size) {
+	device.createCommandBuffer().beginOT().copyBuffer(src, dst, size).end().submitOT(device, device.getGraphicsQueue());
 }
 
 }

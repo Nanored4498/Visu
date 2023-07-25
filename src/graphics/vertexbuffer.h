@@ -51,12 +51,17 @@ struct Vertex : public VertexDescription<vec2f, vec3f> {
 class VertexBuffer : public Buffer {
 public:
 	VertexBuffer() = default;
-	VertexBuffer(const Device &device, VkDeviceSize size) { init(device, size); }
 
 	inline void init(const Device &device, VkDeviceSize size) {
 		// TODO: Instead of coherence we could use flush
-		Buffer::init(device, size, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-				VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+		Buffer::init(device, size,
+				VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+				VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+	}
+	inline void init(const Device &device, const Vertex *vertices, VkDeviceSize size) {
+		init(device, size);
+		const Buffer tmp = Buffer::createStagingBuffer(device, (void*) vertices, size);
+		Buffer::copy(device, tmp, *this, size);
 	}
 };
 

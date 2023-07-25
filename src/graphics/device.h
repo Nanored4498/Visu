@@ -32,12 +32,10 @@ public:
 
 	CommandBuffer createCommandBuffer(bool primary=true) const;
 	void allocCommandBuffers(CommandBuffer *cmdBufs, uint32_t size, bool primary=true) const;
-	inline void freeCommandBuffer(CommandBuffer& cmdBuf) const {
-		if(device) vkFreeCommandBuffers(device, commandPool, 1u, reinterpret_cast<VkCommandBuffer*>(&cmdBuf));
-	}
 	inline void freeCommandBuffers(CommandBuffer *cmdBufs, uint32_t size) const {
 		if(device) vkFreeCommandBuffers(device, commandPool, size, reinterpret_cast<VkCommandBuffer*>(cmdBufs));
 	}
+	const VkFence& getOTFence() const { return OTFence; }
 
 	inline void waitIdle() const { vkDeviceWaitIdle(device); }
 
@@ -70,6 +68,7 @@ private:
 	VkQueue graphicsQueue, presentQueue;
 
 	VkCommandPool commandPool;
+	VkFence OTFence;
 };
 
 }

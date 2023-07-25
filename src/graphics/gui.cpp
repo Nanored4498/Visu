@@ -43,7 +43,7 @@ void GUIRenderPass::init(const Device &device, const Swapchain &swapchain) {
 		.dstSubpass = 0u,
 		.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
 		.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-		.srcAccessMask = VK_PIPELINE_STAGE_NONE,
+		.srcAccessMask = VK_ACCESS_NONE,
 		.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
 		.dependencyFlags = 0u
 	};
@@ -136,17 +136,17 @@ void GUI::init(Instance &instance, const Device &device, const Window &window, c
 		.MinImageCount = 3u,
 		.ImageCount = 3u,
 		.MSAASamples = VK_SAMPLE_COUNT_1_BIT,
+		.UseDynamicRendering = false,
+		.ColorAttachmentFormat = VK_FORMAT_UNDEFINED,
 		.Allocator = nullptr,
 		.CheckVkResultFn = nullptr
 	};
 	ImGui_ImplVulkan_Init(&info, renderPass);
 
 	//execute a gpu command to upload imgui font textures
-	auto cmd = device.createCommandBuffer().begin();
+	auto cmd = device.createCommandBuffer().beginOT();
 	ImGui_ImplVulkan_CreateFontsTexture(cmd);
-	cmd.end().submit(device.getGraphicsQueue());
-  	vkQueueWaitIdle(device.getGraphicsQueue());
-	device.freeCommandBuffer(cmd);
+	cmd.end().submitOT(device, device.getGraphicsQueue());
 	ImGui_ImplVulkan_DestroyFontUploadObjects();
 }
 
