@@ -91,8 +91,16 @@ public:
 		return *this;
 	}
 
+	inline CommandBuffer& bindIndexBuffer(const IndexBuffer &indexBuffer) {
+		vkCmdBindIndexBuffer(cmd, indexBuffer, 0u, VK_INDEX_TYPE_UINT32); return *this;
+	}
+
 	inline CommandBuffer& draw(uint32_t vertexCount, uint32_t instanceCount, uint32_t firstVertex, uint32_t firstInstance) {
 		vkCmdDraw(cmd, vertexCount, instanceCount, firstVertex, firstInstance); return *this;
+	}
+
+	inline CommandBuffer& drawIndexed(uint32_t indexCount, uint32_t instanceCount, uint32_t firstVertex, uint32_t firstInstance) {
+		vkCmdDrawIndexed(cmd, indexCount, instanceCount, firstVertex, 0, firstInstance); return *this;
 	}
 
 	inline CommandBuffer& copyBuffer(const Buffer &src, Buffer &dst, VkDeviceSize size) {
@@ -167,7 +175,7 @@ private:
 
 class CommandBuffers {
 public:
-	// ~CommandBuffers() { clear(); }
+	~CommandBuffers() { clear(); }
 	inline void init(const Device &device) { this->device = &device; }
 	inline void resize(const std::size_t size, const bool primary=true) {
 		const std::size_t s = cmds.size();

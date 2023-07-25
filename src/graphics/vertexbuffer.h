@@ -53,7 +53,6 @@ public:
 	VertexBuffer() = default;
 
 	inline void init(const Device &device, VkDeviceSize size) {
-		// TODO: Instead of coherence we could use flush
 		Buffer::init(device, size,
 				VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
 				VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
@@ -63,6 +62,23 @@ public:
 		const Buffer tmp = Buffer::createStagingBuffer(device, (void*) vertices, size);
 		Buffer::copy(device, tmp, *this, size);
 	}
+};
+
+class IndexBuffer : public Buffer {
+public:
+	IndexBuffer() = default;
+
+	inline void init(const Device &device, VkDeviceSize size) {
+		Buffer::init(device, size,
+				VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+				VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+	}
+	inline void init(const Device &device, const uint32_t *indices, VkDeviceSize size) {
+		init(device, size);
+		const Buffer tmp = Buffer::createStagingBuffer(device, (void*) indices, size);
+		Buffer::copy(device, tmp, *this, size);
+	}
+
 };
 
 }

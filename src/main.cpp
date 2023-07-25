@@ -33,18 +33,24 @@ gfx::Swapchain swapchain;
 gfx::RenderPass renderPass;
 gfx::Pipeline pipeline;
 gfx::GUI gui;
+// TODO: merge memory of buffers in one allocation and maybe merge buffers and use offset
 gfx::VertexBuffer vertexBuffer;
+gfx::IndexBuffer indexBuffer;
 gfx::CommandBuffers cmdBuffs;
 gfx::Semaphore imageAvailable[2], renderFinished[2];
 std::vector<gfx::Fence> cmdSubmitted;
 int currentFrame = 0;
 
 gfx::Vertex verts[] {
-	{ {}, gfx::vec2f(0.5, 0.5),  gfx::vec3f(1.0f, 0.0f, 0.0f) },
-	{ {}, gfx::vec2f(0.0, -0.5), gfx::vec3f(0.0f, 1.0f, 0.0f) },
-	{ {}, gfx::vec2f(-0.5, 0.5), gfx::vec3f(0.0f, 0.0f, 1.0f) }
+	{ {}, gfx::vec2f(-0.5, 0.5),  gfx::vec3f(0.0f, 0.0f, 1.0f) },
+	{ {}, gfx::vec2f(0.5, 0.5),   gfx::vec3f(1.0f, 0.0f, 0.0f) },
+	{ {}, gfx::vec2f(0.5, -0.5),  gfx::vec3f(1.0f, 1.0f, 0.0f) },
+	{ {}, gfx::vec2f(-0.5, -0.5), gfx::vec3f(0.0f, 1.0f, 0.0f) }
 };
 
+uint32_t inds[] {
+	0, 1, 2, 0, 2, 3
+};
 
 static void drawImGui() {
 	// Start the Dear ImGui frame
@@ -77,7 +83,8 @@ void initCmdBuffs() {
 				.bindPipeline(pipeline)
 				.setViewport(swapchain.getExtent())
 				.bindVertexBuffer(vertexBuffer)
-				.draw(std::size(verts), 1, 0, 0)
+				.bindIndexBuffer(indexBuffer)
+				.drawIndexed(std::size(inds), 1, 0, 0)
 			.endRenderPass()
 		.end();
 }
@@ -95,6 +102,7 @@ void init() {
 	);
 	gui.init(instance, device, window, swapchain);
 	vertexBuffer.init(device, verts, sizeof(verts));
+	indexBuffer.init(device, inds, sizeof(inds));
 	cmdBuffs.init(device);
 	initCmdBuffs();
 	for(gfx::Semaphore &s : imageAvailable) s.init(device);
@@ -150,6 +158,7 @@ void clean() {
 	cmdSubmitted.clear();
 	for(gfx::Semaphore &s : renderFinished) s.clean();
 	for(gfx::Semaphore &s : imageAvailable) s.clean();
+	indexBuffer.clean();
 	vertexBuffer.clean();
 	gui.clean();
 	pipeline.clean();
