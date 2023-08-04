@@ -25,7 +25,6 @@ void DescriptorPool::init(const Device &device, uint32_t size) {
 		THROW_ERROR("failed to create description set layout!");
 
 	// Compute pool sizes
-	//TODO: check how descriptorCount works (adding one or binding.descriptorCount?)
 	std::vector<VkDescriptorPoolSize> poolSizes;
 	for(const VkDescriptorSetLayoutBinding &binding : bindings) {
 		auto it = std::ranges::find(poolSizes, binding.descriptorType, [](const VkDescriptorPoolSize &ps) { return ps.type; });
@@ -66,10 +65,11 @@ void DescriptorPool::init(const Device &device, uint32_t size) {
 	for(std::size_t i = 0; i < bindings.size(); ++i)
 		if(bindings[i].descriptorType == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER) {
 			bufferRanges[i].offset = uniformBufferSize;
-			uniformBufferSize += bufferRanges[i].size;
-			if(uniformBufferSize % uniformAlignment)
-				uniformBufferSize += uniformAlignment - (uniformBufferSize % uniformAlignment);
-			++ uniformBufferCount;
+			bufferRanges[i].storage = bufferRanges[i].size;
+			if(bufferRanges[i].storage % uniformAlignment)
+				bufferRanges[i].storage += uniformAlignment - (bufferRanges[i].storage % uniformAlignment);
+			uniformBufferSize += bindings[i].descriptorCount * bufferRanges[i].storage;
+			uniformBufferCount += bindings[i].descriptorCount;
 		}
 	if(uniformBufferSize) {
 		uniformBuffer.init(device, size * uniformBufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
@@ -97,8 +97,11 @@ void DescriptorPool::init(const Device &device, uint32_t size) {
 				.pTexelBufferView = nullptr
 			};
 			if(bindings[j].descriptorType == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER) {
-				bufferInfos.emplace_back(uniformBuffer, i * uniformBufferSize + bufferRanges[j].offset, bufferRanges[j].size);
-				writes[i * bindings.size() + j].pBufferInfo = &bufferInfos.back();
+				writes[i * bindings.size() + j].pBufferInfo = bufferInfos.data() + bufferInfos.size();
+				for(uint32_t k = 0; k < bindings[j].descriptorCount; ++k)
+					bufferInfos.emplace_back(uniformBuffer,
+						i * uniformBufferSize + bufferRanges[j].offset + k * bufferRanges[j].storage,
+						bufferRanges[j].size);
 			} else ASSERT(false);
 		}
 	}

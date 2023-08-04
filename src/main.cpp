@@ -57,11 +57,11 @@ uint32_t inds[] {
 };
 
 struct Camera {
-	gfx::vec4f center, u, v;
+	alignas(16) gfx::vec3f center, u, v;
 } cam {
-	gfx::vec4f(0, 0, 0, 0),
-	gfx::vec4f(1, 0, 0, 0),
-	gfx::vec4f(0, 1, 0, 0)
+	gfx::vec3f(0, 0, 0),
+	gfx::vec3f(1, 0, 0),
+	gfx::vec3f(0, 1, 0)
 };
 
 static void drawImGui() {

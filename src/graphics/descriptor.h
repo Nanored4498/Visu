@@ -15,13 +15,15 @@ public:
 	void init(const Device &device, uint32_t size);
 	void clean();
 
-	inline void addUniformBuffer(VkShaderStageFlags shaderStage, VkDeviceSize size) {
-		addBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1u, shaderStage, size);
+	inline void addUniformBuffer(VkShaderStageFlags shaderStage, VkDeviceSize size, uint32_t count = 1u) {
+		addBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, count, shaderStage, size);
 	}
 
 	inline const VkDescriptorSetLayout& getLayout() const { return layout; }
 
-	inline void* getUniformMap(uint32_t ind, uint32_t binding) { return (char*) uniformMap + ind * uniformBufferSize + bufferRanges[binding].offset; }
+	inline void* getUniformMap(uint32_t set, uint32_t binding, uint32_t arrayElement = 0u) {
+		return (char*) uniformMap + set * uniformBufferSize + bufferRanges[binding].offset + arrayElement * bufferRanges[binding].storage;
+	}
 
 	inline const VkDescriptorSet& operator[](std::size_t i) const { return sets[i]; }
 
@@ -37,7 +39,7 @@ private:
 	void* uniformMap;
 
 	struct BufferRange {
-		VkDeviceSize offset, size;
+		VkDeviceSize offset, size, storage;
 	};
 	std::vector<BufferRange> bufferRanges;
 	VkDeviceSize uniformBufferSize;
@@ -45,7 +47,7 @@ private:
 	inline void addBinding(VkDescriptorType type, uint32_t count, VkShaderStageFlags shaderStage, VkDeviceSize size) {
 		//TODO: for image sampler look at the last parameter
 		bindings.emplace_back((uint32_t) bindings.size(), type, count, shaderStage, nullptr);
-		bufferRanges.emplace_back(0, size);
+		bufferRanges.emplace_back(0, size, 0);
 	}
 };
 
