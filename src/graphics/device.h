@@ -55,6 +55,11 @@ public:
 		vkGetPhysicalDeviceSurfaceCapabilitiesKHR(gpu, window.getSurface(), &capabilities);
 		return capabilities;
 	}
+	inline VkPhysicalDeviceProperties getProperties() const {
+		VkPhysicalDeviceProperties properties;
+		vkGetPhysicalDeviceProperties(gpu, &properties);
+		return properties;
+	}
 
 	uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) const;
 

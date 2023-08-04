@@ -43,8 +43,8 @@ struct VertexDescription {
 	}
 };
 
-struct Vertex : public VertexDescription<vec2f, vec3f> {
-	vec2f pos;
+struct Vertex : public VertexDescription<vec3f, vec3f> {
+	vec3f pos;
 	vec3f color;
 };
 

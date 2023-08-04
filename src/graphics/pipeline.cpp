@@ -6,6 +6,7 @@
 
 #include "debug.h"
 #include "vertexbuffer.h"
+#include "descriptor.h"
 
 #include <fstream>
 
@@ -37,7 +38,8 @@ void Shader::clean() {
 	shader = nullptr;
 }
 
-void Pipeline::init(const Device &device, const Shader &vertexShader, const Shader &fragmentShader, const RenderPass &renderPass) {
+void Pipeline::init(const Device &device, const Shader &vertexShader, const Shader &fragmentShader,
+					const DescriptorPool &descriptorPool, const RenderPass &renderPass) {
 	// Create shader stages
 	VkPipelineShaderStageCreateInfo stages[2];
 	for(VkPipelineShaderStageCreateInfo &stageInfo : stages) {
@@ -135,7 +137,6 @@ void Pipeline::init(const Device &device, const Shader &vertexShader, const Shad
 	// Color blending
 	const VkPipelineColorBlendAttachmentState colorBlendAttachment {
 		.blendEnable = VK_FALSE,
-		// .blendEnable = VK_TRUE,
 		.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA,
 		.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,
 		.colorBlendOp = VK_BLEND_OP_ADD,
@@ -170,15 +171,12 @@ void Pipeline::init(const Device &device, const Shader &vertexShader, const Shad
 	};
 
 	// Layout
-	// const VkDescriptorSetLayout layouts[] { descriptorPool.layout };
 	const VkPipelineLayoutCreateInfo layoutInfo {
 		.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
 		.pNext = nullptr,
 		.flags = 0u,
-		// .setLayoutCount = std::size(layouts),
-		// .pSetLayouts = layouts,
-		.setLayoutCount = 0u,
-		.pSetLayouts = nullptr,
+		.setLayoutCount = 1u,
+		.pSetLayouts = &descriptorPool.getLayout(),
 		.pushConstantRangeCount = 0u,
 		.pPushConstantRanges = nullptr
 	};

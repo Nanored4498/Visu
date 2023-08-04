@@ -1,6 +1,11 @@
+// Copyright (C) 2023, Coudert--Osmont Yoann
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// See <https://www.gnu.org/licenses/>
+
 #pragma once
 
 #include "renderpass.h"
+#include "descriptor.h"
 
 namespace gfx {
 
@@ -19,10 +24,12 @@ class Pipeline {
 public:
 	~Pipeline() { clean(); }
 
-	void init(const Device &device, const Shader &vertexShader, const Shader &fragmentShader, const RenderPass &renderPass);
+	void init(const Device &device, const Shader &vertexShader, const Shader &fragmentShader,
+				const DescriptorPool &descriptorPool, const RenderPass &renderPass);
 	void clean();
 
 	inline operator VkPipeline() const { return pipeline; }
+	inline VkPipelineLayout getLayout() const { return layout; }
 
 private:
 	VkPipeline pipeline;

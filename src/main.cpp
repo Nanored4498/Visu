@@ -1,4 +1,7 @@
-#include <iostream>
+// Copyright (C) 2023, Coudert--Osmont Yoann
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// See <https://www.gnu.org/licenses/>#include <iostream>
+
 #include <stdexcept>
 
 #include <config.h>
@@ -31,6 +34,7 @@ gfx::Window window;
 gfx::Device device;
 gfx::Swapchain swapchain;
 gfx::RenderPass renderPass;
+gfx::DescriptorPool descriptorPool;
 gfx::Pipeline pipeline;
 gfx::GUI gui;
 // TODO: merge memory of buffers in one allocation and maybe merge buffers and use offset
@@ -42,14 +46,22 @@ std::vector<gfx::Fence> cmdSubmitted;
 int currentFrame = 0;
 
 gfx::Vertex verts[] {
-	{ {}, gfx::vec2f(-0.5, 0.5),  gfx::vec3f(0.0f, 0.0f, 1.0f) },
-	{ {}, gfx::vec2f(0.5, 0.5),   gfx::vec3f(1.0f, 0.0f, 0.0f) },
-	{ {}, gfx::vec2f(0.5, -0.5),  gfx::vec3f(1.0f, 1.0f, 0.0f) },
-	{ {}, gfx::vec2f(-0.5, -0.5), gfx::vec3f(0.0f, 1.0f, 0.0f) }
+	{ {}, gfx::vec3f(-0.5, 0.5, 0),  gfx::vec3f(0.0f, 0.0f, 1.0f) },
+	{ {}, gfx::vec3f(0.5, 0.5, 0),   gfx::vec3f(1.0f, 0.0f, 0.0f) },
+	{ {}, gfx::vec3f(0.5, -0.5, 0),  gfx::vec3f(1.0f, 1.0f, 0.0f) },
+	{ {}, gfx::vec3f(-0.5, -0.5, 0), gfx::vec3f(0.0f, 1.0f, 0.0f) }
 };
 
 uint32_t inds[] {
 	0, 1, 2, 0, 2, 3
+};
+
+struct Camera {
+	gfx::vec4f center, u, v;
+} cam {
+	gfx::vec4f(0, 0, 0, 0),
+	gfx::vec4f(1, 0, 0, 0),
+	gfx::vec4f(0, 1, 0, 0)
 };
 
 static void drawImGui() {
@@ -84,6 +96,7 @@ void initCmdBuffs() {
 				.setViewport(swapchain.getExtent())
 				.bindVertexBuffer(vertexBuffer)
 				.bindIndexBuffer(indexBuffer)
+				.bindDescriptorSet(pipeline, descriptorPool[i])
 				.drawIndexed(std::size(inds), 1, 0, 0)
 			.endRenderPass()
 		.end();
@@ -95,9 +108,12 @@ void init() {
 	device.init(instance, window);
 	swapchain.init(device, window);
 	renderPass.init(device, swapchain);
+	descriptorPool.addUniformBuffer(VK_SHADER_STAGE_VERTEX_BIT, sizeof(cam));
+	descriptorPool.init(device, renderPass.size());
 	pipeline.init(device,
 		gfx::Shader(device, SHADER_DIR "/test.vert.spv"),
 		gfx::Shader(device, SHADER_DIR "/test.frag.spv"),
+		descriptorPool,
 		renderPass
 	);
 	gui.init(instance, device, window, swapchain);
@@ -123,6 +139,7 @@ void updateSwapchain() {
 	swapchain.recreate(device, window);
 	renderPass.initFramebuffers(swapchain);
 	gui.update(swapchain);
+	//TODO: Maybe descriptor pool should be resized
 	initCmdBuffs();
 	cmdSubmitted.resize(cmdBuffs.size());
 	for(gfx::Fence &f : cmdSubmitted) if(!f) f.init(device, true);
@@ -140,6 +157,7 @@ void loop() {
 		}
 		cmdSubmitted[imIndex].wait();
 		cmdSubmitted[imIndex].reset();
+		* (Camera*) descriptorPool.getUniformMap(imIndex, 0) = cam;
 		gfx::CommandBuffer cmds[] { cmdBuffs[imIndex], gui.getCommand(swapchain, imIndex) };
 		gfx::CommandBuffer::submit(cmds, std::size(cmds),
 								device.getGraphicsQueue(),
@@ -162,6 +180,7 @@ void clean() {
 	vertexBuffer.clean();
 	gui.clean();
 	pipeline.clean();
+	descriptorPool.clean();
 	renderPass.clean();
 	swapchain.clean();
 	device.clean();

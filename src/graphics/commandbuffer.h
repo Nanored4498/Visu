@@ -1,3 +1,7 @@
+// Copyright (C) 2023, Coudert--Osmont Yoann
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// See <https://www.gnu.org/licenses/>#pragma once
+
 #pragma once
 
 #include "debug.h"
@@ -93,6 +97,11 @@ public:
 
 	inline CommandBuffer& bindIndexBuffer(const IndexBuffer &indexBuffer) {
 		vkCmdBindIndexBuffer(cmd, indexBuffer, 0u, VK_INDEX_TYPE_UINT32); return *this;
+	}
+
+	inline CommandBuffer& bindDescriptorSet(const Pipeline &pipeline, VkDescriptorSet set) {
+		vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.getLayout(), 0u, 1u, &set, 0u, nullptr);
+		return *this;
 	}
 
 	inline CommandBuffer& draw(uint32_t vertexCount, uint32_t instanceCount, uint32_t firstVertex, uint32_t firstInstance) {

@@ -17,7 +17,7 @@ struct AppError : public std::exception {
 	#define DEBUG_HERE
 	#define DEBUG_MSG(...) {}
 	#define PRINT_INFO(...)
-	#define ASSERT(x)
+	#define ASSERT(x) {}
 
 #else
 

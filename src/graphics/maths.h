@@ -111,4 +111,16 @@ struct vec3T : vec_base<3, T, vec3T<T>> {
 using vec3 = vec3T<double>;
 using vec3f = vec3T<float>;
 
+template <typename T>
+struct vec4T : vec_base<4, T, vec4T<T>> {
+	T x, y, z, w;
+	vec4T() = default;
+	vec4T(T x, T y=0, T z=0, T w=0): x(x), y(y), z(z), w(w) {}
+	template<typename U, typename W>
+	vec4T(const vec_base<4, U, W> &other): vec_base<4, T, vec4T>(other) {}
+};
+using vec4 = vec4T<double>;
+using vec4f = vec4T<float>;
+using vec4i = vec4T<int>;
+
 };
