@@ -66,6 +66,9 @@ public:
 		facet_corner_attribute;
 	
 	Mesh(): facet_offset(1, 0u) {}
+
+	inline std::size_t nverts() const { return points.size(); }
+	inline std::size_t nfacet_corners() const { return facet_vertices.size(); }
 };
 
 Mesh readMesh(const char* filename);

@@ -23,10 +23,20 @@
 #include <geometry/mesh.h>
 
 #include <algorithm>
+#include <numbers>
 
 const char* APP_NAME = "Visu";
 constexpr int WIDTH = 800;
 constexpr int HEIGHT = 600;
+
+struct Object {
+	std::string name;
+	Mesh mesh;
+	// TODO: merge memory of buffers in one allocation and maybe merge buffers and use offset
+	gfx::VertexBuffer vertexBuffer;
+	gfx::IndexBuffer indexBuffer;
+};
+std::vector<Object> objects;
 
 gfx::Instance instance;
 gfx::Window window;
@@ -36,9 +46,6 @@ gfx::RenderPass renderPass;
 gfx::DescriptorPool descriptorPool;
 gfx::Pipeline pipeline;
 gfx::GUI gui;
-// TODO: merge memory of buffers in one allocation and maybe merge buffers and use offset
-gfx::VertexBuffer vertexBuffer;
-gfx::IndexBuffer indexBuffer;
 gfx::CommandBuffers cmdBuffs;
 gfx::Semaphore imageAvailable[2], renderFinished[2];
 std::vector<gfx::Fence> cmdSubmitted;
@@ -55,13 +62,60 @@ uint32_t inds[] {
 	0, 1, 2, 0, 2, 3
 };
 
+int width = WIDTH, height = HEIGHT;
+float zoom = 1.f;
+enum {
+	IDLE,
+	MOVE,
+	ROTATE
+} cursor_mode;
+double xclick, yclick;
+vec3f center0, u0, v0;
 struct Camera {
 	alignas(16) vec3f center, u, v;
 } cam {
 	vec3f(0, 0, 0),
-	vec3f(1, 0, 0),
-	vec3f(0, 1, 0)
+	vec3f(zoom, 0, 0),
+	vec3f(0, zoom * float(width) / float(height), 0)
 };
+
+static void scrollCallback([[maybe_unused]] GLFWwindow *window, [[maybe_unused]] double xoffset, double yoffset) {
+	zoom *= std::pow(1.1, yoffset);
+	cam.u *= zoom / cam.u.norm();
+	cam.v *= zoom * float(width) / float(height) / cam.v.norm();
+}
+
+static void mouseButtonCallback(GLFWwindow *window, int button, int action, [[maybe_unused]] int mods) {
+	if(action == GLFW_RELEASE) cursor_mode = IDLE;
+	else if(button == GLFW_MOUSE_BUTTON_LEFT) {
+		cursor_mode = MOVE;
+		center0 = cam.center;
+		glfwGetCursorPos(window, &xclick, &yclick);
+	} else if(button == GLFW_MOUSE_BUTTON_RIGHT) {
+		cursor_mode = ROTATE;
+		(u0 = cam.u).normalize();
+		(v0 = cam.v).normalize();
+		glfwGetCursorPos(window, &xclick, &yclick);
+	}
+}
+
+static void cursorPosCallback([[maybe_unused]] GLFWwindow *window, double xpos, double ypos) {
+	if(cursor_mode == MOVE) {
+		cam.center = center0
+			- 2 * (xpos - xclick) / (width * cam.u.norm2()) * cam.u
+			+ 2 * (ypos - yclick) / (height * cam.v.norm2()) * cam.v;
+	} else if(cursor_mode == ROTATE) {
+		vec2 dp(xpos - xclick, yclick - ypos);
+		const double len = dp.norm();
+		dp /= len;
+		const double theta = std::numbers::pi * len / std::sqrt(width*width + height*height);
+		const vec3f a = dp.x * u0 + dp.y * v0;
+		const vec3f b = cross(u0, v0);
+		const vec3f c = (std::cos(theta) - 1.) * a + std::sin(theta) * b;
+		cam.u = zoom * (u0 + dp.x * c);
+		cam.v = zoom * float(width) / float(height) * (v0 + dp.y * c);
+	}
+}
 
 static void drawImGui() {
 	// Start the Dear ImGui frame
@@ -89,22 +143,26 @@ static void drawImGui() {
 void initCmdBuffs() {
 	//TODO: If we record command buffers for every frame then use push constants
 	cmdBuffs.resize(renderPass.size());
-	for(std::size_t i = 0; i < cmdBuffs.size(); ++i)
+	for(std::size_t i = 0; i < cmdBuffs.size(); ++i) {
 		cmdBuffs[i].begin()
 			.beginRenderPass(renderPass, swapchain, i)
 				.bindPipeline(pipeline)
 				.setViewport(swapchain.getExtent())
-				.bindVertexBuffer(vertexBuffer)
-				.bindIndexBuffer(indexBuffer)
-				.bindDescriptorSet(pipeline, descriptorPool[i])
-				.drawIndexed(std::size(inds), 1, 0, 0)
-			.endRenderPass()
-		.end();
+				.bindDescriptorSet(pipeline, descriptorPool[i]);
+				for(const Object &obj : objects) cmdBuffs[i]
+					.bindVertexBuffer(obj.vertexBuffer)
+					.bindIndexBuffer(obj.indexBuffer)
+					.drawIndexed(obj.mesh.nfacet_corners(), 1, 0, 0);
+		cmdBuffs[i].endRenderPass().end();
+	}
 }
 
 void init() {
 	instance.init(APP_NAME, gfx::Window::getRequiredExtensions());
 	window.init(APP_NAME, WIDTH, HEIGHT, instance);
+	window.setScrollCallback(scrollCallback);
+	window.setMouseButtonCallback(mouseButtonCallback);
+	window.setCursorPosCallback(cursorPosCallback);
 	device.init(instance, window);
 	swapchain.init(device, window);
 	renderPass.init(device, swapchain);
@@ -117,8 +175,18 @@ void init() {
 		renderPass
 	);
 	gui.init(instance, device, window, swapchain);
-	vertexBuffer.init(device, verts, sizeof(verts));
-	indexBuffer.init(device, inds, sizeof(inds));
+	for(Object &obj : objects) {
+		const VkDeviceSize size = sizeof(gfx::Vertex) * obj.mesh.nverts();
+		obj.vertexBuffer.init(device, size);
+		gfx::Buffer tmp = gfx::Buffer::createStagingBuffer(device, size);
+		gfx::Vertex* vmap = (gfx::Vertex*) tmp.mapMemory();
+		for(std::size_t i = 0; i < obj.mesh.nverts(); ++i) {
+			vmap[i].pos = obj.mesh.points[i];
+			vmap[i].color = vec3f(.4, .5, .6);
+		}
+		gfx::Buffer::copy(device, tmp, obj.vertexBuffer, size);
+		obj.indexBuffer.init(device, obj.mesh.facet_vertices.data(), sizeof(uint32_t) * obj.mesh.nfacet_corners());
+	}
 	cmdBuffs.init(device);
 	initCmdBuffs();
 	for(gfx::Semaphore &s : imageAvailable) s.init(device);
@@ -128,12 +196,12 @@ void init() {
 }
 
 void updateSwapchain() {
-	int w, h;
-	window.getFramebufferSize(w, h);
-	while(!w || !h) {
-		window.getFramebufferSize(w, h);
+	window.getFramebufferSize(width, height);
+	while(!width || !height) {
+		window.getFramebufferSize(width, height);
 		glfwWaitEvents();
-	} 
+	}
+	cam.v *= zoom * float(width) / float(height) / cam.v.norm();
 	window.resetFramebufferResized();
 	device.waitIdle();
 	swapchain.recreate(device, window);
@@ -176,8 +244,10 @@ void clean() {
 	cmdSubmitted.clear();
 	for(gfx::Semaphore &s : renderFinished) s.clean();
 	for(gfx::Semaphore &s : imageAvailable) s.clean();
-	indexBuffer.clean();
-	vertexBuffer.clean();
+	for(Object &obj : objects) {
+		obj.indexBuffer.clean();
+		obj.vertexBuffer.clean();
+	}
 	gui.clean();
 	pipeline.clean();
 	descriptorPool.clean();
@@ -194,10 +264,8 @@ int main(int argc, const char* argv[]) {
 
 	Lua::new_state();
 
-	std::vector<Mesh> meshes;
 	for(int i = 1; i < argc; ++i) {
-		meshes.emplace_back();
-		meshes.emplace_back(readMesh(argv[i]));
+		objects.emplace_back(argv[i], readMesh(argv[i]));
 	}
 
 	try {

@@ -1,3 +1,7 @@
+// Copyright (C) 2023, Coudert--Osmont Yoann
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// See <https://www.gnu.org/licenses/>
+
 #pragma once
 
 #include "device.h"
@@ -30,13 +34,16 @@ public:
 
 	static void copy(const Device &device, const Buffer &src, Buffer &dst, VkDeviceSize size);
 
-	inline static Buffer createStagingBuffer(const Device &device, void* data, VkDeviceSize size) {
-		Buffer buffer(
+	inline static Buffer createStagingBuffer(const Device &device, VkDeviceSize size) {
+		return Buffer(
 			device,
 			size,
 			VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
 			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
 		);
+	}
+	inline static Buffer createStagingBuffer(const Device &device, void* data, VkDeviceSize size) {
+		Buffer buffer = createStagingBuffer(device, size);
 		buffer.fillWithData(data, size);
 		return buffer;
 	}

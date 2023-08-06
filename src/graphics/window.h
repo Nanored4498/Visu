@@ -1,3 +1,7 @@
+// Copyright (C) 2023, Coudert--Osmont Yoann
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// See <https://www.gnu.org/licenses/>
+
 #pragma once
 
 #include "instance.h"
@@ -24,6 +28,10 @@ public:
 	inline void getFramebufferSize(int &width, int &height) const {
 		glfwGetFramebufferSize(window, &width, &height);
 	}
+
+	inline void setScrollCallback(GLFWscrollfun callback) { glfwSetScrollCallback(window, callback); }
+	inline void setMouseButtonCallback(GLFWmousebuttonfun callback) { glfwSetMouseButtonCallback(window, callback); }
+	inline void setCursorPosCallback(GLFWcursorposfun callback) { glfwSetCursorPosCallback(window, callback); }
 
 	inline static Extensions getRequiredExtensions() {
 		Extensions exts;
