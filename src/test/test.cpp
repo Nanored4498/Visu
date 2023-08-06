@@ -4,7 +4,6 @@
 
 #define LUA_BINDER_IMPL
 #include <lua/luabinder.h>
-#include <lua/ultimaille.h>
 #include <lua/std.h>
 
 using namespace std;
@@ -53,8 +52,6 @@ int main() {
 		.var("y", &Foo::y);
 	Lua::addFunction("gen", gen);
 	Lua::addFunction("getA", getA);
-
-	Lua::bindUltimaille();
 
 	Lua::callFile(PROJECT_DIR "/src/test/test.lua");
 	std::cerr << A.y << std::endl;

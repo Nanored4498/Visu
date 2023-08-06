@@ -5,8 +5,7 @@
 #pragma once
 
 #include <cmath>
-
-namespace gfx {
+#include <ostream>
 
 template<typename T>
 struct get_scalar { using type = typename T::Scalar; };
@@ -122,5 +121,3 @@ struct vec4T : vec_base<4, T, vec4T<T>> {
 using vec4 = vec4T<double>;
 using vec4f = vec4T<float>;
 using vec4i = vec4T<int>;
-
-};

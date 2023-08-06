@@ -37,7 +37,12 @@ include_directories(
 	src
 )
 
-file(GLOB SOURCES src/*.cpp src/graphics/*.cpp src/lua/*.cpp)
+file(GLOB SOURCES
+	src/*.cpp
+	src/geometry/*.cpp
+	src/graphics/*.cpp
+	src/lua/*.cpp
+)
 add_executable(${PROJECT_NAME} ${SOURCES})
 target_link_libraries(${PROJECT_NAME}
 	${LUA_LIBRARIES}

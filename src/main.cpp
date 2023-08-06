@@ -19,9 +19,8 @@
 
 #define LUA_BINDER_IMPL
 #include <lua/luabinder.h>
-#include <lua/ultimaille.h>
 
-#include <ultimaille/io/by_extension.h>
+#include <geometry/mesh.h>
 
 #include <algorithm>
 
@@ -46,10 +45,10 @@ std::vector<gfx::Fence> cmdSubmitted;
 int currentFrame = 0;
 
 gfx::Vertex verts[] {
-	{ {}, gfx::vec3f(-0.5, 0.5, 0),  gfx::vec3f(0.0f, 0.0f, 1.0f) },
-	{ {}, gfx::vec3f(0.5, 0.5, 0),   gfx::vec3f(1.0f, 0.0f, 0.0f) },
-	{ {}, gfx::vec3f(0.5, -0.5, 0),  gfx::vec3f(1.0f, 1.0f, 0.0f) },
-	{ {}, gfx::vec3f(-0.5, -0.5, 0), gfx::vec3f(0.0f, 1.0f, 0.0f) }
+	{ {}, vec3f(-0.5, 0.5, 0),  vec3f(0.0f, 0.0f, 1.0f) },
+	{ {}, vec3f(0.5, 0.5, 0),   vec3f(1.0f, 0.0f, 0.0f) },
+	{ {}, vec3f(0.5, -0.5, 0),  vec3f(1.0f, 1.0f, 0.0f) },
+	{ {}, vec3f(-0.5, -0.5, 0), vec3f(0.0f, 1.0f, 0.0f) }
 };
 
 uint32_t inds[] {
@@ -57,11 +56,11 @@ uint32_t inds[] {
 };
 
 struct Camera {
-	alignas(16) gfx::vec3f center, u, v;
+	alignas(16) vec3f center, u, v;
 } cam {
-	gfx::vec3f(0, 0, 0),
-	gfx::vec3f(1, 0, 0),
-	gfx::vec3f(0, 1, 0)
+	vec3f(0, 0, 0),
+	vec3f(1, 0, 0),
+	vec3f(0, 1, 0)
 };
 
 static void drawImGui() {
@@ -88,6 +87,7 @@ static void drawImGui() {
 }
 
 void initCmdBuffs() {
+	//TODO: If we record command buffers for every frame then use push constants
 	cmdBuffs.resize(renderPass.size());
 	for(std::size_t i = 0; i < cmdBuffs.size(); ++i)
 		cmdBuffs[i].begin()
@@ -193,13 +193,11 @@ int main(int argc, const char* argv[]) {
 	glfwInit();
 
 	Lua::new_state();
-	Lua::bindUltimaille();
 
-	std::vector<std::pair<UM::SurfaceAttributes, UM::Triangles>> meshes;
-	Lua::setGlobal("meshes", meshes);
+	std::vector<Mesh> meshes;
 	for(int i = 1; i < argc; ++i) {
 		meshes.emplace_back();
-		meshes.back().first = UM::read_by_extension(argv[i], meshes.back().second);
+		meshes.emplace_back(readMesh(argv[i]));
 	}
 
 	try {
