@@ -1,7 +1,5 @@
 #include <iostream>
 
-#include <ultimaille/io/by_extension.h>
-
 #define LUA_BINDER_IMPL
 #include <lua/luabinder.h>
 #include <lua/std.h>
@@ -26,10 +24,10 @@ void check(lua_State *L, int err) {
 struct Foo {
 	int y=0;
 	~Foo() { cerr << "DESTRUCTOR " << this << endl; }
-	Foo(const Foo &a) { cerr << "COPY CONST REF" << endl; }
-	Foo(Foo &&a) { cerr << "COPY RVALUE" << endl; }
+	Foo(const Foo &a) { y = a.y; cerr << "COPY CONST REF" << endl; }
+	Foo(Foo &&a) { y = a.y; cerr << "COPY RVALUE" << endl; }
 	Foo() { cerr << "CONSTRUCTION" << endl; }
-	Foo& operator=(const Foo &a) { cerr << "OPERATOR= CONST REF" << endl; return *this; }
+	Foo& operator=(const Foo &a) { y = a.y; cerr << "OPERATOR= CONST REF" << endl; return *this; }
 	void bar() {
 		cout << "Foobar" << endl;
 	}

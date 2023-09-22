@@ -23,15 +23,7 @@ void Buffer::init(const Device &device, VkDeviceSize size, VkBufferUsageFlags us
 		THROW_ERROR("failed to create buffer!");
 
 	// Memory allocation
-	VkMemoryRequirements memReq;
-	vkGetBufferMemoryRequirements(device, buffer, &memReq);
-	VkMemoryAllocateInfo allocInfo {
-		.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
-		.pNext = nullptr,
-		.allocationSize = memReq.size,
-		.memoryTypeIndex = device.findMemoryType(memReq.memoryTypeBits, properties)
-	};
-	if(vkAllocateMemory(device, &allocInfo, nullptr, &memory) != VK_SUCCESS)
+	if(device.allocateMemory<vkGetBufferMemoryRequirements>(buffer, properties, memory) != VK_SUCCESS)
 		THROW_ERROR("failed to allocate buffer memory!");
 	vkBindBufferMemory(device, buffer, memory, 0u);
 }

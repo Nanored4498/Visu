@@ -26,8 +26,11 @@ private:
 public:
 	// Constructor
 	vec_base() = default;
-	template<typename U, typename W>
-	vec_base(const vec_base<N, U, W> &other) { _vecFOR (*this)[i] = other[i]; }
+	template<int M, typename U, typename W> requires(M <= N)
+	inline vec_base(const vec_base<M, U, W> &other) {
+		for(std::ptrdiff_t i = 0; i < M; ++i) (*this)[i] = other[i];
+		for(std::ptrdiff_t i = M; i < N; ++i) (*this)[i] = T(0);
+	}
 
 	// Coordinate access
 	inline const T& operator[](std::ptrdiff_t i) const { return reinterpret_cast<const T*>(this)[i]; }
@@ -88,8 +91,8 @@ struct vec2T : vec_base<2, T, vec2T<T>> {
 	T x, y;
 	vec2T() = default;
 	vec2T(T x, T y=0): x(x), y(y) {}
-	template<typename U, typename W>
-	vec2T(const vec_base<2, U, W> &other): vec_base<2, T, vec2T>(other) {}
+	template<int M, typename U, typename W>
+	vec2T(const vec_base<M, U, W> &other): vec_base<2, T, vec2T>(other) {}
 };
 using vec2 = vec2T<double>;
 using vec2f = vec2T<float>;
@@ -100,8 +103,8 @@ struct vec3T : vec_base<3, T, vec3T<T>> {
 	T x, y, z;
 	vec3T() = default;
 	vec3T(T x, T y=0, T z=0): x(x), y(y), z(z) {}
-	template<typename U, typename W>
-	vec3T(const vec_base<3, U, W> &other): vec_base<3, T, vec3T>(other) {}
+	template<int M, typename U, typename W>
+	vec3T(const vec_base<M, U, W> &other): vec_base<3, T, vec3T>(other) {}
 
 	inline friend vec3T cross(const vec3T &a, const vec3T &b) {
 		return vec3T(a.y*b.z - a.z*b.y, a.z*b.x - a.x*b.z, a.x*b.y - a.y*b.x);

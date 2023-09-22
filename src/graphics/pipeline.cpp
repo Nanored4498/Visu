@@ -40,6 +40,8 @@ void Shader::clean() {
 
 void Pipeline::init(const Device &device, const Shader &vertexShader, const Shader &fragmentShader,
 					const DescriptorPool &descriptorPool, const RenderPass &renderPass) {
+	clean();
+
 	// Create shader stages
 	VkPipelineShaderStageCreateInfo stages[2];
 	for(VkPipelineShaderStageCreateInfo &stageInfo : stages) {
@@ -117,7 +119,6 @@ void Pipeline::init(const Device &device, const Shader &vertexShader, const Shad
 	};
 
 	// Depth and stencil
-	/*
 	const VkPipelineDepthStencilStateCreateInfo depthStencilInfo {
 		.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
 		.pNext = nullptr,
@@ -132,7 +133,6 @@ void Pipeline::init(const Device &device, const Shader &vertexShader, const Shad
 		.minDepthBounds = 0.f,
 		.maxDepthBounds = 1.f
 	};
-	*/
 
 	// Color blending
 	const VkPipelineColorBlendAttachmentState colorBlendAttachment {
@@ -197,8 +197,7 @@ void Pipeline::init(const Device &device, const Shader &vertexShader, const Shad
 		.pViewportState = &viewportInfo,
 		.pRasterizationState = &rasterInfo,
 		.pMultisampleState = &multiSampleInfo,
-		// .pDepthStencilState = &depthStencilInfo,
-		.pDepthStencilState = nullptr,
+		.pDepthStencilState = &depthStencilInfo,
 		.pColorBlendState = &colorBlendInfo,
 		.pDynamicState = &dynamicInfo,
 		.layout = layout,

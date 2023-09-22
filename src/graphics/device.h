@@ -61,7 +61,26 @@ public:
 		return properties;
 	}
 
+	inline VkFormatProperties getFormatProperties(VkFormat format) const {
+		VkFormatProperties formatProperties;
+		vkGetPhysicalDeviceFormatProperties(gpu, format, &formatProperties);
+		return formatProperties;
+	}
+
 	uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) const;
+
+	template<auto getRequirements>
+	VkResult allocateMemory(auto object, VkMemoryPropertyFlags properties, VkDeviceMemory &memory) const {
+		VkMemoryRequirements memReq;
+		getRequirements(device, object, &memReq);
+		VkMemoryAllocateInfo allocInfo {
+			.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+			.pNext = nullptr,
+			.allocationSize = memReq.size,
+			.memoryTypeIndex = findMemoryType(memReq.memoryTypeBits, properties)
+		};
+		return vkAllocateMemory(device, &allocInfo, nullptr, &memory);
+	}
 
 private:
 	VkPhysicalDevice gpu = nullptr;

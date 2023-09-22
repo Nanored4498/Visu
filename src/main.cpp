@@ -34,7 +34,6 @@ struct Object {
 	Mesh mesh;
 	// TODO: merge memory of buffers in one allocation and maybe merge buffers and use offset
 	gfx::VertexBuffer vertexBuffer;
-	gfx::IndexBuffer indexBuffer;
 };
 std::vector<Object> objects;
 
@@ -42,6 +41,7 @@ gfx::Instance instance;
 gfx::Window window;
 gfx::Device device;
 gfx::Swapchain swapchain;
+gfx::DepthImage depthImage;
 gfx::RenderPass renderPass;
 gfx::DescriptorPool descriptorPool;
 gfx::Pipeline pipeline;
@@ -50,17 +50,6 @@ gfx::CommandBuffers cmdBuffs;
 gfx::Semaphore imageAvailable[2], renderFinished[2];
 std::vector<gfx::Fence> cmdSubmitted;
 int currentFrame = 0;
-
-gfx::Vertex verts[] {
-	{ {}, vec3f(-0.5, 0.5, 0),  vec3f(0.0f, 0.0f, 1.0f) },
-	{ {}, vec3f(0.5, 0.5, 0),   vec3f(1.0f, 0.0f, 0.0f) },
-	{ {}, vec3f(0.5, -0.5, 0),  vec3f(1.0f, 1.0f, 0.0f) },
-	{ {}, vec3f(-0.5, -0.5, 0), vec3f(0.0f, 1.0f, 0.0f) }
-};
-
-uint32_t inds[] {
-	0, 1, 2, 0, 2, 3
-};
 
 int width = WIDTH, height = HEIGHT;
 float zoom = 1.f;
@@ -151,8 +140,7 @@ void initCmdBuffs() {
 				.bindDescriptorSet(pipeline, descriptorPool[i]);
 				for(const Object &obj : objects) cmdBuffs[i]
 					.bindVertexBuffer(obj.vertexBuffer)
-					.bindIndexBuffer(obj.indexBuffer)
-					.drawIndexed(obj.mesh.nfacet_corners(), 1, 0, 0);
+					.draw(obj.mesh.nfacet_corners(), 1, 0, 0);
 		cmdBuffs[i].endRenderPass().end();
 	}
 }
@@ -165,7 +153,8 @@ void init() {
 	window.setCursorPosCallback(cursorPosCallback);
 	device.init(instance, window);
 	swapchain.init(device, window);
-	renderPass.init(device, swapchain);
+	depthImage.init(device, swapchain.getExtent());
+	renderPass.init(device, swapchain, depthImage);
 	descriptorPool.addUniformBuffer(VK_SHADER_STAGE_VERTEX_BIT, sizeof(cam));
 	descriptorPool.init(device, renderPass.size());
 	pipeline.init(device,
@@ -176,16 +165,16 @@ void init() {
 	);
 	gui.init(instance, device, window, swapchain);
 	for(Object &obj : objects) {
-		const VkDeviceSize size = sizeof(gfx::Vertex) * obj.mesh.nverts();
+		const VkDeviceSize size = sizeof(gfx::Vertex) * obj.mesh.nfacet_corners();
 		obj.vertexBuffer.init(device, size);
 		gfx::Buffer tmp = gfx::Buffer::createStagingBuffer(device, size);
 		gfx::Vertex* vmap = (gfx::Vertex*) tmp.mapMemory();
-		for(std::size_t i = 0; i < obj.mesh.nverts(); ++i) {
-			vmap[i].pos = obj.mesh.points[i];
-			vmap[i].color = vec3f(.4, .5, .6);
+		for(std::size_t i = 0; i < obj.mesh.nfacet_corners(); ++i) {
+			vmap[i].pos = obj.mesh.points[obj.mesh.facet_vertices[i]];
+			if(obj.mesh.facet_corner_attribute.empty()) vmap[i].color = vec3f(0.);
+			else vmap[i].color = obj.mesh.facet_corner_attribute[0].uv[i];
 		}
 		gfx::Buffer::copy(device, tmp, obj.vertexBuffer, size);
-		obj.indexBuffer.init(device, obj.mesh.facet_vertices.data(), sizeof(uint32_t) * obj.mesh.nfacet_corners());
 	}
 	cmdBuffs.init(device);
 	initCmdBuffs();
@@ -205,7 +194,8 @@ void updateSwapchain() {
 	window.resetFramebufferResized();
 	device.waitIdle();
 	swapchain.recreate(device, window);
-	renderPass.initFramebuffers(swapchain);
+	depthImage.init(device, swapchain.getExtent());
+	renderPass.initFramebuffers(swapchain, depthImage);
 	gui.update(swapchain);
 	//TODO: Maybe descriptor pool should be resized
 	initCmdBuffs();
@@ -244,14 +234,12 @@ void clean() {
 	cmdSubmitted.clear();
 	for(gfx::Semaphore &s : renderFinished) s.clean();
 	for(gfx::Semaphore &s : imageAvailable) s.clean();
-	for(Object &obj : objects) {
-		obj.indexBuffer.clean();
-		obj.vertexBuffer.clean();
-	}
+	for(Object &obj : objects) obj.vertexBuffer.clean();
 	gui.clean();
 	pipeline.clean();
 	descriptorPool.clean();
 	renderPass.clean();
+	depthImage.clean();
 	swapchain.clean();
 	device.clean();
 	window.clean();

@@ -17,5 +17,6 @@ void main() {
 	vec3 p = inPosition - cam.center;
 	vec3 cam_w = normalize(cross(cam.v, cam.u));
 	gl_Position = vec4(dot(cam.u, p), -dot(cam.v, p), atan(dot(cam_w, p)) / PI + .5, 1.0);
-	fragColor = inColor * (.5 + .5*dot(cam_w, p));
+	fragColor.xy = inColor.xy;
+	fragColor.z = (.5 + .5*dot(cam_w, p));
 }

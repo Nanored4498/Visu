@@ -4,21 +4,11 @@
 
 namespace gfx {
 
-void RenderPass::init(const Device &device, const Swapchain &swapchain) {
+void RenderPass::init(const Device &device, const Swapchain &swapchain, const DepthImage &depthImage) {
 	clean();
 
-	// depth format
-	/*
-	depthFormat = device.findSupportedFormat(
-		{ VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT },
-		VK_IMAGE_TILING_OPTIMAL,
-		VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT
-	);
-	if(depthFormat == VK_FORMAT_MAX_ENUM) throw std::runtime_error("failed to find a supported depth format!");
-	*/
-
 	// attachments
-	std::vector<VkAttachmentDescription> attachments {
+	VkAttachmentDescription attachments[] {
 		{ // Color
 			.flags = 0u,
 			.format = swapchain.getFormat(),
@@ -30,17 +20,18 @@ void RenderPass::init(const Device &device, const Swapchain &swapchain) {
 			.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
 			.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
 			.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
-		} /*, { // Depth
+		}, { // Depth
 			.flags = 0u,
-			.format = depthFormat,
-			.samples = msaaSamples,
+			.format = depthImage.getFormat(),
+			// .samples = msaaSamples,
+			.samples = VK_SAMPLE_COUNT_1_BIT,
 			.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
 			.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
 			.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
 			.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
 			.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
 			.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
-		}*/
+		}
 	};
 	/*
 	if(msaaSamples != VK_SAMPLE_COUNT_1_BIT) {
@@ -62,11 +53,11 @@ void RenderPass::init(const Device &device, const Swapchain &swapchain) {
 		.attachment = 0u,
 		.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
 	};
-	/*
 	const VkAttachmentReference depthAttachmentRef {
 		.attachment = 1u,
 		.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
 	};
+	/*
 	const VkAttachmentReference resolveAttachmentRef {
 		.attachment = 2u,
 		.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
@@ -82,19 +73,19 @@ void RenderPass::init(const Device &device, const Swapchain &swapchain) {
 		.pColorAttachments = &colAttachmentRef,
 		// .pResolveAttachments = msaaSamples != VK_SAMPLE_COUNT_1_BIT ? &resolveAttachmentRef : nullptr,
 		.pResolveAttachments = nullptr,
-		// .pDepthStencilAttachment = &depthAttachmentRef,
-		.pDepthStencilAttachment = nullptr,
+		.pDepthStencilAttachment = &depthAttachmentRef,
 		.preserveAttachmentCount = 0u,
 		.pPreserveAttachments = nullptr
 	};
 
+	// TODO: Understand dependencies! Could it be split in two dependencies from extern to 0, one for color, another for depth?
 	const VkSubpassDependency dependcy {
 		.srcSubpass = VK_SUBPASS_EXTERNAL,
 		.dstSubpass = 0u,
-		.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT /*| VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT */,
-		.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT /*| VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT */,
+		.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT,
+		.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT,
 		.srcAccessMask = VK_ACCESS_NONE,
-		.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT /*| VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT*/,
+		.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
 		.dependencyFlags = 0u
 	};
 
@@ -102,8 +93,8 @@ void RenderPass::init(const Device &device, const Swapchain &swapchain) {
 		.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
 		.pNext = nullptr,
 		.flags = 0u,
-		.attachmentCount = (uint) attachments.size(),
-		.pAttachments = attachments.data(),
+		.attachmentCount = std::size(attachments),
+		.pAttachments = attachments,
 		.subpassCount = 1u,
 		.pSubpasses = &subpass,
 		.dependencyCount = 1u,
@@ -113,10 +104,10 @@ void RenderPass::init(const Device &device, const Swapchain &swapchain) {
 	if(vkCreateRenderPass(this->device = device, &passInfo, nullptr, &pass) != VK_SUCCESS)
 		THROW_ERROR("failed to create render pass!");
 	
-	initFramebuffers(swapchain);
+	initFramebuffers(swapchain, depthImage);
 }
 
-void RenderPass::initFramebuffers(const Swapchain &swapchain) {
+void RenderPass::initFramebuffers(const Swapchain &swapchain, const DepthImage &depthImage) {
 	cleanFramebuffers();
 	VkFramebufferCreateInfo framebufferInfo {
 		.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
@@ -132,8 +123,8 @@ void RenderPass::initFramebuffers(const Swapchain &swapchain) {
 	framebuffers.resize(swapchain.size());
 	for(std::size_t i = 0; i < framebuffers.size(); ++i) {
 		std::vector<VkImageView> attachments {
-			swapchain[i]
-			// , depthImage.getView()
+			swapchain[i],
+			depthImage.getView()
 		};
 		/*
 		if(msaaSamples != VK_SAMPLE_COUNT_1_BIT) {

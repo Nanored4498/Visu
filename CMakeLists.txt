@@ -46,7 +46,6 @@ file(GLOB SOURCES
 add_executable(${PROJECT_NAME} ${SOURCES})
 target_link_libraries(${PROJECT_NAME}
 	${LUA_LIBRARIES}
-	ultimaille
 	glfw
 	vulkan
 	imgui
@@ -58,6 +57,5 @@ file(GLOB TEST_SOURCES src/test/*.cpp src/lua/*.cpp)
 add_executable(Test ${TEST_SOURCES})
 target_link_libraries(Test
 	${LUA_LIBRARIES}
-	ultimaille
 )
 ########################
