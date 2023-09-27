@@ -5,22 +5,18 @@ layout(location = 1) in vec3 inNormal;
 layout(location = 2) in vec2 inUV;
 
 layout(location = 0) out vec3 outNormal;
-// TODO: make cam_w uniform
-layout(location = 1) out vec3 cam_w;
-layout(location = 2) out vec2 outUV;
+layout(location = 1) out vec2 outUV;
 
 layout(binding = 0) uniform Camera {
 	vec3 center;
-	vec3 u;
-	vec3 v;
+	vec3 u, v, w;
 } cam;
 
 #define PI 3.14159265359
 
 void main() {
 	vec3 p = inPosition - cam.center;
-	cam_w = normalize(cross(cam.v, cam.u));
-	gl_Position = vec4(dot(cam.u, p), -dot(cam.v, p), atan(dot(cam_w, p)) / PI + .5, 1.0);
+	gl_Position = vec4(dot(cam.u, p), -dot(cam.v, p), atan(dot(cam.w, p)) / PI + .5, 1.0);
 	outNormal = inNormal;
 	outUV = inUV;
 }

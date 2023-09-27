@@ -23,17 +23,18 @@
 #include <geometry/mesh.h>
 
 #include <algorithm>
-#include <numbers>
+#include <filesystem>
 
 const char* APP_NAME = "Visu";
 constexpr int WIDTH = 800;
 constexpr int HEIGHT = 600;
 
-struct Object {
+class Object : public Mesh {
+public:
 	std::string name;
-	Mesh mesh;
 	// TODO: merge memory of buffers in one allocation and maybe merge buffers and use offset
 	gfx::VertexBuffer vertexBuffer;
+	float surfaceColor[3];
 };
 std::vector<Object> objects;
 
@@ -61,12 +62,14 @@ enum {
 double xclick, yclick;
 vec3f center0, u0, v0;
 struct Camera {
-	alignas(16) vec3f center, u, v;
+	alignas(16) vec3f center, u, v, w;
 } cam {
 	vec3f(0, 0, 0),
 	vec3f(zoom, 0, 0),
-	vec3f(0, zoom * float(width) / float(height), 0)
+	vec3f(0, zoom * float(width) / float(height), 0),
+	vec3f(0, 0, -1)
 };
+bool smooth_shading = false;
 
 static void scrollCallback([[maybe_unused]] GLFWwindow *window, [[maybe_unused]] double xoffset, double yoffset) {
 	zoom *= std::pow(1.1, yoffset);
@@ -103,6 +106,54 @@ static void cursorPosCallback([[maybe_unused]] GLFWwindow *window, double xpos, 
 		const vec3f c = (std::cos(theta) - 1.) * a + std::sin(theta) * b;
 		cam.u = zoom * (u0 + dp.x * c);
 		cam.v = zoom * float(width) / float(height) * (v0 + dp.y * c);
+		cam.w = cross(cam.v, cam.u).normalize();
+	}
+}
+
+void fillVertexBuffer() {
+	if(smooth_shading) {
+		for(Object &obj : objects) {
+			std::vector<vec3> normals(obj.nverts(), vec3(0.));
+			for(std::uint32_t f = 0, fc = 0; f < obj.nfacets(); ++f) for(; fc < obj.facet_offset[f+1]; ++fc) {
+				const std::uint32_t pfc = obj.prev(f, fc);
+				const std::uint32_t nfc = obj.next(f, fc);
+				const vec3 a = obj.corner_point(pfc) - obj.corner_point(fc);
+				const vec3 b = obj.corner_point(nfc) - obj.corner_point(fc);
+				const vec3 normal = cross(a, b);
+				const double c = a * b;
+				const double s = normal.norm();
+				const double angle = std::atan2(s, c);
+				const std::uint32_t v = obj.facet_vertices[fc];
+				normals[v] += (angle / s) * normal;
+			}
+			for(vec3 &n : normals) n.normalize();
+
+			const VkDeviceSize size = sizeof(gfx::Vertex) * obj.nfacet_corners();
+			gfx::Buffer tmp = gfx::Buffer::createStagingBuffer(device, size);
+			gfx::Vertex* vmap = (gfx::Vertex*) tmp.mapMemory();
+			for(std::uint32_t f = 0, fc = 0; f < obj.nfacets(); ++f) for(; fc < obj.facet_offset[f+1]; ++fc) {
+				const std::uint32_t v = obj.facet_vertices[fc];
+				vmap[fc].pos = obj.points[v];
+				vmap[fc].normal = normals[v];
+				if(obj.facet_corner_attributes.empty()) vmap[fc].uv = vec2f(0.);
+				else vmap[fc].uv = obj.facet_corner_attributes[0].uv[fc];
+			}
+			gfx::Buffer::copy(device, tmp, obj.vertexBuffer, size);
+		}
+	} else {
+		for(Object &obj : objects) {
+			const VkDeviceSize size = sizeof(gfx::Vertex) * obj.nfacet_corners();
+			gfx::Buffer tmp = gfx::Buffer::createStagingBuffer(device, size);
+			gfx::Vertex* vmap = (gfx::Vertex*) tmp.mapMemory();
+			for(std::uint32_t f = 0, fc = 0; f < obj.nfacets(); ++f) for(; fc < obj.facet_offset[f+1]; ++fc) {
+				const std::uint32_t v = obj.facet_vertices[fc];
+				vmap[fc].pos = obj.points[v];
+				vmap[fc].normal = obj.corner_normal(f, fc);
+				if(obj.facet_corner_attributes.empty()) vmap[fc].uv = vec2f(0.);
+				else vmap[fc].uv = obj.facet_corner_attributes[0].uv[fc];
+			}
+			gfx::Buffer::copy(device, tmp, obj.vertexBuffer, size);
+		}
 	}
 }
 
@@ -112,19 +163,12 @@ static void drawImGui() {
 	ImGui_ImplGlfw_NewFrame();
 	ImGui::NewFrame();
 
-	static float f = 0.0f;
-	static int counter = 0;
-
-	ImGui::Begin("Renderer Options");
-	ImGui::Text("This is some useful text.");
-	ImGui::SliderFloat("float", &f, 0.0f, 1.0f);
-	if(ImGui::Button("Button")) counter++;
-	ImGui::SameLine();
-	ImGui::Text("counter = %d", counter);
-
-	ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate,
-				ImGui::GetIO().Framerate);
-	ImGui::End();
+	for(Object &obj :objects) {
+		ImGui::Begin((obj.name + " properties").c_str());
+		if(ImGui::Checkbox("Smooth Shading", &smooth_shading)) fillVertexBuffer();
+		ImGui::ColorEdit3("Surface Color", obj.surfaceColor);
+		ImGui::End();
+	}
 
 	ImGui::Render();
 }
@@ -140,7 +184,7 @@ void initCmdBuffs() {
 				.bindDescriptorSet(pipeline, descriptorPool[i]);
 				for(const Object &obj : objects) cmdBuffs[i]
 					.bindVertexBuffer(obj.vertexBuffer)
-					.draw(obj.mesh.nfacet_corners(), 1, 0, 0);
+					.draw(obj.nfacet_corners(), 1, 0, 0);
 		cmdBuffs[i].endRenderPass().end();
 	}
 }
@@ -155,7 +199,7 @@ void init() {
 	swapchain.init(device, window);
 	depthImage.init(device, swapchain.getExtent());
 	renderPass.init(device, swapchain, depthImage);
-	descriptorPool.addUniformBuffer(VK_SHADER_STAGE_VERTEX_BIT, sizeof(cam));
+	descriptorPool.addUniformBuffer(VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(cam));
 	descriptorPool.init(device, renderPass.size());
 	pipeline.init(device,
 		gfx::Shader(device, SHADER_DIR "/test.vert.spv"),
@@ -164,36 +208,8 @@ void init() {
 		renderPass
 	);
 	gui.init(instance, device, window, swapchain);
-	for(Object &obj : objects) {
-		const VkDeviceSize size = sizeof(gfx::Vertex) * obj.mesh.nfacet_corners();
-		obj.vertexBuffer.init(device, size);
-		gfx::Buffer tmp = gfx::Buffer::createStagingBuffer(device, size);
-		gfx::Vertex* vmap = (gfx::Vertex*) tmp.mapMemory();
-		std::vector<vec3> normals(obj.mesh.nverts(), vec3(0.));
-		for(std::uint32_t f = 0, fc = 0; f < obj.mesh.nfacets(); ++f) for(; fc < obj.mesh.facet_offset[f+1]; ++fc) {
-			const std::uint32_t pfc = obj.mesh.prev(f, fc);
-			const std::uint32_t nfc = obj.mesh.next(f, fc);
-			const vec3 a = obj.mesh.corner_point(pfc) - obj.mesh.corner_point(fc);
-			const vec3 b = obj.mesh.corner_point(nfc) - obj.mesh.corner_point(fc);
-			const vec3 normal = cross(a, b);
-			const double c = a * b;
-			const double s = normal.norm();
-			const double angle = std::atan2(s, c);
-			const std::uint32_t v = obj.mesh.facet_vertices[fc];
-			normals[v] += (angle / s) * normal;
-		}
-		for(vec3 &n : normals) n.normalize();
-		for(std::uint32_t f = 0, fc = 0; f < obj.mesh.nfacets(); ++f) for(; fc < obj.mesh.facet_offset[f+1]; ++fc) {
-			const std::uint32_t v = obj.mesh.facet_vertices[fc];
-			vmap[fc].pos = obj.mesh.points[v];
-			// TODO: Allow to choose between two types of normal
-			// vmap[fc].normal = obj.mesh.corner_normal(f, fc);
-			vmap[fc].normal = normals[v];
-			if(obj.mesh.facet_corner_attributes.empty()) vmap[fc].uv = vec2f(0.);
-			else vmap[fc].uv = obj.mesh.facet_corner_attributes[0].uv[fc];
-		}
-		gfx::Buffer::copy(device, tmp, obj.vertexBuffer, size);
-	}
+	for(Object &obj : objects) obj.vertexBuffer.init(device, sizeof(gfx::Vertex) * obj.nfacet_corners());
+	fillVertexBuffer();
 	cmdBuffs.init(device);
 	initCmdBuffs();
 	for(gfx::Semaphore &s : imageAvailable) s.init(device);
@@ -271,7 +287,9 @@ int main(int argc, const char* argv[]) {
 	Lua::new_state();
 
 	for(int i = 1; i < argc; ++i) {
-		objects.emplace_back(argv[i], readMesh(argv[i]));
+		objects.emplace_back(readMesh(argv[i]));
+		objects.back().name = std::filesystem::path(argv[i]).filename().replace_extension();
+		std::fill_n(objects.back().surfaceColor, 3, 0.65f);
 	}
 
 	try {
