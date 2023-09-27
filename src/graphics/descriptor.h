@@ -21,8 +21,9 @@ public:
 
 	inline const VkDescriptorSetLayout& getLayout() const { return layout; }
 
-	inline void* getUniformMap(uint32_t set, uint32_t binding, uint32_t arrayElement = 0u) {
-		return (char*) uniformMap + set * uniformBufferSize + bufferRanges[binding].offset + arrayElement * bufferRanges[binding].storage;
+	inline Buffer& getBuffer() { return uniformBuffer; }
+	inline VkDeviceSize getOffset(uint32_t set, uint32_t binding, uint32_t arrayElement = 0u) {
+		return set * uniformBufferSize + bufferRanges[binding].offset + arrayElement * bufferRanges[binding].storage;
 	}
 
 	inline const VkDescriptorSet& operator[](std::size_t i) const { return sets[i]; }
@@ -36,7 +37,6 @@ private:
 	std::vector<VkDescriptorSetLayoutBinding> bindings;
 	std::vector<VkDescriptorSet> sets;
 	Buffer uniformBuffer;
-	void* uniformMap;
 
 	struct BufferRange {
 		VkDeviceSize offset, size, storage;

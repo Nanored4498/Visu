@@ -170,6 +170,12 @@ void Pipeline::init(const Device &device, const Shader &vertexShader, const Shad
 		.pDynamicStates = dynamicStates
 	};
 
+	VkPushConstantRange pushConstantRange {
+		.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+		.offset = 0u,
+		.size = sizeof(vec3f)
+	};
+
 	// Layout
 	const VkPipelineLayoutCreateInfo layoutInfo {
 		.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
@@ -177,8 +183,8 @@ void Pipeline::init(const Device &device, const Shader &vertexShader, const Shad
 		.flags = 0u,
 		.setLayoutCount = 1u,
 		.pSetLayouts = &descriptorPool.getLayout(),
-		.pushConstantRangeCount = 0u,
-		.pPushConstantRanges = nullptr
+		.pushConstantRangeCount = 1u,
+		.pPushConstantRanges = &pushConstantRange
 	};
 
 	if(vkCreatePipelineLayout(device, &layoutInfo, nullptr, &layout) != VK_SUCCESS)

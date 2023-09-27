@@ -72,10 +72,9 @@ void DescriptorPool::init(const Device &device, uint32_t size) {
 			uniformBufferCount += bindings[i].descriptorCount;
 		}
 	if(uniformBufferSize) {
-		uniformBuffer.init(device, size * uniformBufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-				//TODO: instead of coherent use flush
-				VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-		uniformMap = uniformBuffer.mapMemory();
+		uniformBuffer.init(device, size * uniformBufferSize,
+				VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+				VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 	}
 	
 	// Update descriptor sets

@@ -10,9 +10,13 @@ layout(binding = 0) uniform Camera {
 	vec3 u, v, w;
 } cam;
 
+layout(push_constant) uniform Mesh {
+    vec3 color;
+} mesh;
+
 void main() {
     vec2 uv = inUV - round(inUV);
-    vec3 color = vec3(0.65 * pow(max(0., dot(normal, cam.w) / length(normal)), 1.5));
+    vec3 color = 0.65 * pow(max(0., dot(normal, cam.w) / length(normal)), 1.5) * mesh.color;
     if(abs(uv.x) < .1 || abs(uv.y) < .1) color *= 0.11;
     outColor = vec4(color, 1.0);
 }

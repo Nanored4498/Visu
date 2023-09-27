@@ -42,12 +42,13 @@ gfx::Instance instance;
 gfx::Window window;
 gfx::Device device;
 gfx::Swapchain swapchain;
+// TODO: Maybe need two depth images
 gfx::DepthImage depthImage;
 gfx::RenderPass renderPass;
 gfx::DescriptorPool descriptorPool;
 gfx::Pipeline pipeline;
 gfx::GUI gui;
-gfx::CommandBuffers cmdBuffs;
+gfx::CommandBuffers cmdBuffs, uniCmdBuffs;
 gfx::Semaphore imageAvailable[2], renderFinished[2];
 std::vector<gfx::Fence> cmdSubmitted;
 int currentFrame = 0;
@@ -138,6 +139,7 @@ void fillVertexBuffer() {
 				if(obj.facet_corner_attributes.empty()) vmap[fc].uv = vec2f(0.);
 				else vmap[fc].uv = obj.facet_corner_attributes[0].uv[fc];
 			}
+			// TODO: copy use submit OT that wait for the command to finish: No need for sync here
 			gfx::Buffer::copy(device, tmp, obj.vertexBuffer, size);
 		}
 	} else {
@@ -152,6 +154,7 @@ void fillVertexBuffer() {
 				if(obj.facet_corner_attributes.empty()) vmap[fc].uv = vec2f(0.);
 				else vmap[fc].uv = obj.facet_corner_attributes[0].uv[fc];
 			}
+			// TODO: copy use submit OT that wait for the command to finish: No need for sync here
 			gfx::Buffer::copy(device, tmp, obj.vertexBuffer, size);
 		}
 	}
@@ -167,6 +170,8 @@ static void drawImGui() {
 		ImGui::Begin((obj.name + " properties").c_str());
 		if(ImGui::Checkbox("Smooth Shading", &smooth_shading)) fillVertexBuffer();
 		ImGui::ColorEdit3("Surface Color", obj.surfaceColor);
+		ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate,
+					ImGui::GetIO().Framerate);
 		ImGui::End();
 	}
 
@@ -183,6 +188,7 @@ void initCmdBuffs() {
 				.setViewport(swapchain.getExtent())
 				.bindDescriptorSet(pipeline, descriptorPool[i]);
 				for(const Object &obj : objects) cmdBuffs[i]
+					.pushConstants(pipeline, VK_SHADER_STAGE_FRAGMENT_BIT, obj.surfaceColor, sizeof(obj.surfaceColor))
 					.bindVertexBuffer(obj.vertexBuffer)
 					.draw(obj.nfacet_corners(), 1, 0, 0);
 		cmdBuffs[i].endRenderPass().end();
@@ -212,6 +218,8 @@ void init() {
 	fillVertexBuffer();
 	cmdBuffs.init(device);
 	initCmdBuffs();
+	uniCmdBuffs.init(device);
+	uniCmdBuffs.resize(renderPass.size());
 	for(gfx::Semaphore &s : imageAvailable) s.init(device);
 	for(gfx::Semaphore &s : renderFinished) s.init(device);
 	cmdSubmitted.resize(cmdBuffs.size());
@@ -233,6 +241,7 @@ void updateSwapchain() {
 	gui.update(swapchain);
 	//TODO: Maybe descriptor pool should be resized
 	initCmdBuffs();
+	uniCmdBuffs.resize(renderPass.size());
 	cmdSubmitted.resize(cmdBuffs.size());
 	for(gfx::Fence &f : cmdSubmitted) if(!f) f.init(device, true);
 	swapchain.cleanOld();
@@ -240,8 +249,6 @@ void updateSwapchain() {
 
 void loop() {
 	while(!window.shouldClose()) {
-		glfwPollEvents();
-		drawImGui();
 		const uint32_t imIndex = swapchain.acquireNextImage(imageAvailable[currentFrame]);
 		if(imIndex == UINT32_MAX) {
 			updateSwapchain();
@@ -249,8 +256,10 @@ void loop() {
 		}
 		cmdSubmitted[imIndex].wait();
 		cmdSubmitted[imIndex].reset();
-		* (Camera*) descriptorPool.getUniformMap(imIndex, 0) = cam;
-		gfx::CommandBuffer cmds[] { cmdBuffs[imIndex], gui.getCommand(swapchain, imIndex) };
+		glfwPollEvents();
+		drawImGui();
+		uniCmdBuffs[imIndex].beginOT().updateBuffer(descriptorPool.getBuffer(), descriptorPool.getOffset(imIndex, 0), sizeof(cam), &cam).end();
+		gfx::CommandBuffer cmds[] { uniCmdBuffs[imIndex], cmdBuffs[imIndex], gui.getCommand(swapchain, imIndex) };
 		gfx::CommandBuffer::submit(cmds, std::size(cmds),
 								device.getGraphicsQueue(),
 								imageAvailable[currentFrame], renderFinished[currentFrame],

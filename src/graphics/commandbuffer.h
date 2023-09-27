@@ -104,6 +104,11 @@ public:
 		return *this;
 	}
 
+	inline CommandBuffer& pushConstants(const Pipeline &pipeline, VkShaderStageFlags stage, const void* value, uint32_t size) {
+		vkCmdPushConstants(cmd, pipeline.getLayout(), stage, 0u, size, value);
+		return *this;
+	}
+
 	inline CommandBuffer& draw(uint32_t vertexCount, uint32_t instanceCount, uint32_t firstVertex, uint32_t firstInstance) {
 		vkCmdDraw(cmd, vertexCount, instanceCount, firstVertex, firstInstance); return *this;
 	}
@@ -119,6 +124,11 @@ public:
 			.size = size
 		};
 		vkCmdCopyBuffer(cmd, src, dst, 1u, &region);
+		return *this;
+	}
+
+	inline CommandBuffer& updateBuffer(Buffer &buffer, VkDeviceSize offset, VkDeviceSize size, const void* data) {
+		vkCmdUpdateBuffer(cmd, buffer, offset, size, data);
 		return *this;
 	}
 
@@ -139,7 +149,8 @@ public:
 	};
 
 	static void submit(CommandBuffer *cmds, uint32_t count, VkQueue queue, Semaphore &wait, Semaphore &signal, Fence &fence) {
-		const VkPipelineStageFlags waitStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+		// TODO: waitStages should not be hardcoded
+		const VkPipelineStageFlags waitStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
 		const VkSubmitInfo submitInfo {
 			.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
 			.pNext = nullptr,
