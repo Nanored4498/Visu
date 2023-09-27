@@ -43,9 +43,10 @@ struct VertexDescription {
 	}
 };
 
-struct Vertex : public VertexDescription<vec3f, vec3f> {
+struct Vertex : public VertexDescription<vec3f, vec3f, vec2f> {
 	vec3f pos;
-	vec3f color;
+	vec3f normal;
+	vec2f uv;
 };
 
 class VertexBuffer : public Buffer {

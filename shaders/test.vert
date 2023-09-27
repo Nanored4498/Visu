@@ -1,9 +1,13 @@
 #version 450
 
 layout(location = 0) in vec3 inPosition;
-layout(location = 1) in vec3 inColor;
+layout(location = 1) in vec3 inNormal;
+layout(location = 2) in vec2 inUV;
 
-layout(location = 0) out vec3 fragColor;
+layout(location = 0) out vec3 outNormal;
+// TODO: make cam_w uniform
+layout(location = 1) out vec3 cam_w;
+layout(location = 2) out vec2 outUV;
 
 layout(binding = 0) uniform Camera {
 	vec3 center;
@@ -15,8 +19,8 @@ layout(binding = 0) uniform Camera {
 
 void main() {
 	vec3 p = inPosition - cam.center;
-	vec3 cam_w = normalize(cross(cam.v, cam.u));
+	cam_w = normalize(cross(cam.v, cam.u));
 	gl_Position = vec4(dot(cam.u, p), -dot(cam.v, p), atan(dot(cam_w, p)) / PI + .5, 1.0);
-	fragColor.xy = inColor.xy;
-	fragColor.z = (.5 + .5*dot(cam_w, p));
+	outNormal = inNormal;
+	outUV = inUV;
 }

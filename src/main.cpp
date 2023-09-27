@@ -169,10 +169,28 @@ void init() {
 		obj.vertexBuffer.init(device, size);
 		gfx::Buffer tmp = gfx::Buffer::createStagingBuffer(device, size);
 		gfx::Vertex* vmap = (gfx::Vertex*) tmp.mapMemory();
-		for(std::size_t i = 0; i < obj.mesh.nfacet_corners(); ++i) {
-			vmap[i].pos = obj.mesh.points[obj.mesh.facet_vertices[i]];
-			if(obj.mesh.facet_corner_attribute.empty()) vmap[i].color = vec3f(0.);
-			else vmap[i].color = obj.mesh.facet_corner_attribute[0].uv[i];
+		std::vector<vec3> normals(obj.mesh.nverts(), vec3(0.));
+		for(std::uint32_t f = 0, fc = 0; f < obj.mesh.nfacets(); ++f) for(; fc < obj.mesh.facet_offset[f+1]; ++fc) {
+			const std::uint32_t pfc = obj.mesh.prev(f, fc);
+			const std::uint32_t nfc = obj.mesh.next(f, fc);
+			const vec3 a = obj.mesh.corner_point(pfc) - obj.mesh.corner_point(fc);
+			const vec3 b = obj.mesh.corner_point(nfc) - obj.mesh.corner_point(fc);
+			const vec3 normal = cross(a, b);
+			const double c = a * b;
+			const double s = normal.norm();
+			const double angle = std::atan2(s, c);
+			const std::uint32_t v = obj.mesh.facet_vertices[fc];
+			normals[v] += (angle / s) * normal;
+		}
+		for(vec3 &n : normals) n.normalize();
+		for(std::uint32_t f = 0, fc = 0; f < obj.mesh.nfacets(); ++f) for(; fc < obj.mesh.facet_offset[f+1]; ++fc) {
+			const std::uint32_t v = obj.mesh.facet_vertices[fc];
+			vmap[fc].pos = obj.mesh.points[v];
+			// TODO: Allow to choose between two types of normal
+			// vmap[fc].normal = obj.mesh.corner_normal(f, fc);
+			vmap[fc].normal = normals[v];
+			if(obj.mesh.facet_corner_attributes.empty()) vmap[fc].uv = vec2f(0.);
+			else vmap[fc].uv = obj.mesh.facet_corner_attributes[0].uv[fc];
 		}
 		gfx::Buffer::copy(device, tmp, obj.vertexBuffer, size);
 	}
@@ -194,7 +212,7 @@ void updateSwapchain() {
 	window.resetFramebufferResized();
 	device.waitIdle();
 	swapchain.recreate(device, window);
-	depthImage.init(device, swapchain.getExtent());
+	depthImage.recreate(device, swapchain.getExtent());
 	renderPass.initFramebuffers(swapchain, depthImage);
 	gui.update(swapchain);
 	//TODO: Maybe descriptor pool should be resized

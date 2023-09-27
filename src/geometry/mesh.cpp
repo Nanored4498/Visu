@@ -15,7 +15,7 @@ Mesh readOBJ(const char* filename) {
 	Mesh m;
 	vector<vec2> VT;
 	Attribute& polyline_id = m.edge_attributes.emplace_back("polyline_id", Attribute::INTEGER);
-	Attribute& tex_coords = m.facet_corner_attribute.emplace_back("tex_coords", Attribute::VEC2);
+	Attribute& tex_coords = m.facet_corner_attributes.emplace_back("tex_coords", Attribute::VEC2);
 	ifstream in(filename);
 	if(in.fail()) THROW_ERROR(string("Failed to open ") + filename);
 	string line;
@@ -64,7 +64,7 @@ Mesh readOBJ(const char* filename) {
 		}
 	}
 	in.close();
-	if(VT.empty()) m.facet_corner_attribute.clear();
+	if(VT.empty()) m.facet_corner_attributes.clear();
 	if(m.edge_vertices.empty()) m.edge_attributes.clear();
 	return m;
 }

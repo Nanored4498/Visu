@@ -62,13 +62,30 @@ public:
 	std::vector<Attribute>
 		point_attributes,
 		edge_attributes,
-		facet_attribute,
-		facet_corner_attribute;
+		facet_attributes,
+		facet_corner_attributes;
 	
 	Mesh(): facet_offset(1, 0u) {}
 
 	inline std::size_t nverts() const { return points.size(); }
+	inline std::size_t nfacets() const { return facet_offset.size()-1; }
 	inline std::size_t nfacet_corners() const { return facet_vertices.size(); }
+
+	inline std::uint32_t prev(const std::uint32_t f, const std::uint32_t fc) const {
+		return fc == facet_offset[f] ? facet_offset[f+1]-1 : fc-1;
+	}
+	inline std::uint32_t next(const std::uint32_t f, const std::uint32_t fc) const {
+		return fc+1 == facet_offset[f+1] ? facet_offset[f] : fc+1;
+	}
+
+	inline const vec3& corner_point(const std::uint32_t fc) const { return points[facet_vertices[fc]]; }
+	vec3 corner_normal(const std::uint32_t f, const std::uint32_t fc) const {
+		const std::uint32_t pfc = prev(f, fc);
+		const std::uint32_t nfc = next(f, fc);
+		const vec3 a = points[facet_vertices[pfc]] - points[facet_vertices[fc]];
+		const vec3 b = points[facet_vertices[nfc]] - points[facet_vertices[fc]];
+		return cross(a, b).normalize();
+	}
 };
 
 Mesh readMesh(const char* filename);

@@ -27,6 +27,7 @@ public:
 	~DepthImage() { clean(); }
 
 	void init(const Device &device, VkExtent2D extent);
+	void recreate(const Device &device, VkExtent2D extent);
 	void clean();
 
 	VkFormat getFormat() const { return format; }

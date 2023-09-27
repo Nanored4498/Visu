@@ -47,7 +47,7 @@ public:
 
 	CommandBuffer& beginRenderPass(const RenderPass &renderPass, const Swapchain &swapchain, const std::size_t frame) {
 		constexpr const VkClearValue clearValues[] = {
-			{.color={.float32={0.f, 0.f, 0.f, 1.f}}},
+			{.color={.float32={1.f, 1.f, 1.f, 1.f}}},
 			{.depthStencil={1.f, 0u}}
 		};
 		VkRenderPassBeginInfo renderPassInfo {

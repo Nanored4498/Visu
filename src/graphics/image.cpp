@@ -74,9 +74,7 @@ VkImageView Image::createView(VkDevice device, VkImage image, int dim, VkFormat 
 }
 
 void DepthImage::init(const Device &device, VkExtent2D extent) {
-	clean();
-
-	// TODO: The format should be computed just for the first init
+	// Choose format
 	format = VK_FORMAT_UNDEFINED;
 	for(const VkFormat f : { VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT }) {
 		const VkFormatProperties properties = device.getFormatProperties(f);
@@ -87,8 +85,13 @@ void DepthImage::init(const Device &device, VkExtent2D extent) {
 	}
 	if(format == VK_FORMAT_UNDEFINED)
 		THROW_ERROR("failed to find a supported depth format!");
+	
+	recreate(device, extent);
+}
 
+void DepthImage::recreate(const Device &device, VkExtent2D extent) {
 	// TODO: Reallocation is certainly expensive find a new way to recreate the depth image.
+	clean();
 	Image::init(device, extent, VK_IMAGE_TILING_OPTIMAL, format, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 	view = createView(device, image, 2, format, VK_IMAGE_ASPECT_DEPTH_BIT);
 }
