@@ -74,9 +74,14 @@ std::vector<VkPhysicalDevice> gpus;
 char* __gpu_names = nullptr;
 std::vector<const char*> gpu_names;
 int chosenGPU = 0;
+bool preferenceOpened = false;
 
 void initDevice();
 void cleanDevice();
+
+static void openPreferences() {
+	preferenceOpened = true;
+}
 
 static void scrollCallback([[maybe_unused]] GLFWwindow *window, [[maybe_unused]] double xoffset, double yoffset) {
 	zoom *= std::pow(1.1, yoffset);
@@ -122,6 +127,18 @@ static void cursorPosCallback([[maybe_unused]] GLFWwindow *window, double xpos, 
 			cam.v = zoom * float(width) / float(height) * (v0 + dp.y * c);
 		}
 		cam.w = cross(cam.v, cam.u).normalize();
+	}
+}
+
+static void keyCallback([[maybe_unused]] GLFWwindow *window, int key, [[maybe_unused]] int scancode, int action, int mods) {
+	if((mods & GLFW_MOD_CONTROL) && (action == GLFW_PRESS)) {
+		switch(key) {
+		case GLFW_KEY_P:
+			openPreferences();
+			break;
+		default:
+			break;
+		}
 	}
 }
 
@@ -178,8 +195,6 @@ static bool drawImGui() {
 	ImGui_ImplGlfw_NewFrame();
 	ImGui::NewFrame();
 
-	static bool preferenceOpened = false;
-
 	// Main Menu Bar
 	if(ImGui::BeginMainMenuBar()) {
 		if(ImGui::BeginMenu("File")) {
@@ -188,8 +203,8 @@ static bool drawImGui() {
 				PRINT_INFO("NOT IMPLEMENTED");
 			}
 			ImGui::Separator();
-			if(ImGui::MenuItem("Preferences")) {
-				preferenceOpened = true;
+			if(ImGui::MenuItem("Preferences", "Ctrl+P")) {
+				openPreferences();
 			}
 			ImGui::Separator();
 			if(ImGui::MenuItem("Quit")) {
@@ -295,6 +310,7 @@ void init() {
 	window.setScrollCallback(scrollCallback);
 	window.setMouseButtonCallback(mouseButtonCallback);
 	window.setCursorPosCallback(cursorPosCallback);
+	window.setKeyCallback(keyCallback);
 	gpus = gfx::Device::getAvailableDevices(instance, window);
 	gpu_names.resize(gpus.size());
 	std::size_t names_size = 0;

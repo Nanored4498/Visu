@@ -33,6 +33,7 @@ public:
 	inline void setScrollCallback(GLFWscrollfun callback) { glfwSetScrollCallback(window, callback); }
 	inline void setMouseButtonCallback(GLFWmousebuttonfun callback) { glfwSetMouseButtonCallback(window, callback); }
 	inline void setCursorPosCallback(GLFWcursorposfun callback) { glfwSetCursorPosCallback(window, callback); }
+	inline void setKeyCallback(GLFWkeyfun callback) { glfwSetKeyCallback(window, callback); }
 
 	inline static Extensions getRequiredExtensions() {
 		Extensions exts;
