@@ -90,7 +90,7 @@ void GUIRenderPass::initFramebuffers(const Swapchain &swapchain) {
 	}
 }
 
-void GUI::init(Instance &instance, const Device &device, const Window &window, const Swapchain &swapchain) {
+void GUI::init(Instance &instance, const Device &device, const Swapchain &swapchain) {
 	clean();
 
 	// Descriptor pool
@@ -125,9 +125,6 @@ void GUI::init(Instance &instance, const Device &device, const Window &window, c
 	cmdBufs.resize(swapchain.size());
 
 	// Context
-	ImGui::CreateContext();
-	ImGui::GetIO().IniFilename = nullptr;
-  	ImGui_ImplGlfw_InitForVulkan(window, true);
 	ImGui_ImplVulkan_InitInfo info {
 		.Instance = instance,
 		.PhysicalDevice = device.getGPU(),
@@ -137,8 +134,9 @@ void GUI::init(Instance &instance, const Device &device, const Window &window, c
 		.PipelineCache = nullptr,
 		.DescriptorPool = descriptorPool,
 		.Subpass = 0u,
-		.MinImageCount = 3u,
-		.ImageCount = 3u,
+		// TODO: As swapchain could be resized need to rethink...
+		.MinImageCount = (uint32_t) swapchain.size(),
+		.ImageCount = (uint32_t) swapchain.size(),
 		.MSAASamples = VK_SAMPLE_COUNT_1_BIT,
 		.UseDynamicRendering = false,
 		.ColorAttachmentFormat = VK_FORMAT_UNDEFINED,
@@ -157,8 +155,7 @@ void GUI::init(Instance &instance, const Device &device, const Window &window, c
 void GUI::clean() {
 	if(!descriptorPool) return;
 	ImGui_ImplVulkan_Shutdown();
-	ImGui_ImplGlfw_Shutdown();
-	ImGui::DestroyContext();
+	cmdBufs.clear();
 	renderPass.clean();
 	vkDestroyDescriptorPool(device, descriptorPool, nullptr);
 	descriptorPool = nullptr;

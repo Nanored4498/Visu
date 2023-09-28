@@ -1,7 +1,6 @@
 #include "device.h"
 
 #include "commandbuffer.h"
-#include "config.h"
 #include "debug.h"
 
 #include <algorithm>
@@ -38,12 +37,6 @@ static QueueFamilies findQueueFamilies(VkPhysicalDevice device, VkSurfaceKHR sur
 	return indices;
 }
 
-static VkPhysicalDeviceProperties getPhysicalDeviceProperty(VkPhysicalDevice gpu) {
-	VkPhysicalDeviceProperties deviceProperties;
-	vkGetPhysicalDeviceProperties(gpu, &deviceProperties);
-	return deviceProperties;
-}
-
 static bool isPhysicalDeviceSuitable(VkPhysicalDevice gpu, VkSurfaceKHR surface) {
 	// Need geometry shader
 	VkPhysicalDeviceFeatures deviceFeatures;
@@ -67,20 +60,22 @@ static bool isPhysicalDeviceSuitable(VkPhysicalDevice gpu, VkSurfaceKHR surface)
 	return true;
 }
 
-void Device::init(Instance &instance, const Window &window) {
+std::vector<VkPhysicalDevice> Device::getAvailableDevices(const Instance &instance, const Window &window) {
+	std::vector<VkPhysicalDevice> devices = vkGetList(vkEnumeratePhysicalDevices, (VkInstance) instance);
+	if(devices.empty()) THROW_ERROR("failed to find a GPU with Vulkan support!");
+	for(std::size_t i = 0; i < devices.size(); ++i) if(!isPhysicalDeviceSuitable(devices[i], window.getSurface())) {
+		devices[i] = devices.back();
+		devices.pop_back();
+		--i;
+	}
+	if(devices.empty()) THROW_ERROR("failed to find a GPU which supports the window!");
+	return devices;
+}
+
+void Device::init(const Window &window, VkPhysicalDevice gpu) {
 	clean();
 
-	// Create physical device
-	const std::vector<VkPhysicalDevice> devices = vkGetList(vkEnumeratePhysicalDevices, (VkInstance) instance);
-	if(devices.empty()) THROW_ERROR("failed to find a GPU with Vulkan support!");
-
-	for(VkPhysicalDevice candidate : devices)
-		if(isPhysicalDeviceSuitable(candidate, window.getSurface())
-			&& (!gpu || !strcmp(getPhysicalDeviceProperty(candidate).deviceName, Config::data.preferred_gpu)))
-			gpu = candidate;
-
-	if(!gpu) THROW_ERROR("failed to find a suitable GPU!");
-	PRINT_INFO("Using Physical Device:", getPhysicalDeviceProperty(gpu).deviceName);
+	this->gpu = gpu;
 
 	// Choose queue families
 	queueFamilies = findQueueFamilies(gpu, window.getSurface());

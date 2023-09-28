@@ -20,10 +20,11 @@ public:
 	inline operator GLFWwindow*() const { return window; }
 
 	inline VkSurfaceKHR getSurface() const { return surface; }
-	inline bool shouldClose() const { return glfwWindowShouldClose(window); }
+	inline bool shouldClose() const { return closeRequired | glfwWindowShouldClose(window); }
 	inline bool isFramebufferResized() const { return framebufferResized; }
 
 	inline void resetFramebufferResized() { framebufferResized = false; }
+	inline void requireClose() { closeRequired = true; }
 
 	inline void getFramebufferSize(int &width, int &height) const {
 		glfwGetFramebufferSize(window, &width, &height);
@@ -47,7 +48,8 @@ private:
 	VkSurfaceKHR surface = nullptr;
 	VkInstance instance;
 	
-	bool framebufferResized;
+	bool framebufferResized = false;
+	bool closeRequired = false;
 };
 
 }

@@ -70,6 +70,13 @@ struct Camera {
 	vec3f(0, 0, -1)
 };
 bool smooth_shading = false;
+std::vector<VkPhysicalDevice> gpus;
+char* __gpu_names = nullptr;
+std::vector<const char*> gpu_names;
+int chosenGPU = 0;
+
+void initDevice();
+void cleanDevice();
 
 static void scrollCallback([[maybe_unused]] GLFWwindow *window, [[maybe_unused]] double xoffset, double yoffset) {
 	zoom *= std::pow(1.1, yoffset);
@@ -79,15 +86,18 @@ static void scrollCallback([[maybe_unused]] GLFWwindow *window, [[maybe_unused]]
 
 static void mouseButtonCallback(GLFWwindow *window, int button, int action, [[maybe_unused]] int mods) {
 	if(action == GLFW_RELEASE) cursor_mode = IDLE;
-	else if(button == GLFW_MOUSE_BUTTON_LEFT) {
-		cursor_mode = MOVE;
-		center0 = cam.center;
-		glfwGetCursorPos(window, &xclick, &yclick);
-	} else if(button == GLFW_MOUSE_BUTTON_RIGHT) {
-		cursor_mode = ROTATE;
-		(u0 = cam.u).normalize();
-		(v0 = cam.v).normalize();
-		glfwGetCursorPos(window, &xclick, &yclick);
+	else {
+		if(ImGui::IsWindowHovered(ImGuiHoveredFlags_AnyWindow)) return;
+		if(button == GLFW_MOUSE_BUTTON_LEFT) {
+			cursor_mode = MOVE;
+			center0 = cam.center;
+			glfwGetCursorPos(window, &xclick, &yclick);
+		} else if(button == GLFW_MOUSE_BUTTON_RIGHT) {
+			cursor_mode = ROTATE;
+			(u0 = cam.u).normalize();
+			(v0 = cam.v).normalize();
+			glfwGetCursorPos(window, &xclick, &yclick);
+		}
 	}
 }
 
@@ -162,11 +172,53 @@ void fillVertexBuffer() {
 	}
 }
 
-static void drawImGui() {
+static bool drawImGui() {
 	// Start the Dear ImGui frame
 	ImGui_ImplVulkan_NewFrame();
 	ImGui_ImplGlfw_NewFrame();
 	ImGui::NewFrame();
+
+	static bool preferenceOpened = false;
+
+	// Main Menu Bar
+	if(ImGui::BeginMainMenuBar()) {
+		if(ImGui::BeginMenu("File")) {
+			if(ImGui::MenuItem("Open", "Ctrl+O")) {
+				// TODO: Open mesh file (support shortcut)
+				PRINT_INFO("NOT IMPLEMENTED");
+			}
+			ImGui::Separator();
+			if(ImGui::MenuItem("Preferences")) {
+				preferenceOpened = true;
+			}
+			ImGui::Separator();
+			if(ImGui::MenuItem("Quit")) {
+				window.requireClose();
+			}
+			ImGui::EndMenu();
+		}
+		ImGui::Separator();
+		ImGui::Text("%.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+		ImGui::EndMainMenuBar();
+	}
+
+	if(preferenceOpened) {
+		ImGui::Begin("Preferences");
+		if(ImGui::ListBox("GPU", &chosenGPU, gpu_names.data(), (int) gpu_names.size())) {
+			// TODO: Maybe updating chosenGPU is sufficient
+			std::strcpy(Config::data.preferred_gpu, gpu_names[chosenGPU]);
+			cleanDevice();
+			initDevice();
+			ImGui::End();
+			ImGui::EndFrame();
+			return false;
+		}
+		ImGui::Separator();
+		if(ImGui::Button("Quit")) {
+			preferenceOpened = false;
+		}
+		ImGui::End();
+	}
 
 	for(Object &obj :objects) {
 		ImGui::Begin((obj.name + " properties").c_str());
@@ -174,8 +226,8 @@ static void drawImGui() {
 		ImGui::ColorEdit3("Surface Color", obj.surfaceColor);
 		ImGui::End();
 	}
-
 	ImGui::Render();
+	return true;
 }
 
 void initCmdBuffs() {
@@ -194,13 +246,9 @@ void initCmdBuffs() {
 	}
 }
 
-void init() {
-	instance.init(APP_NAME, gfx::Window::getRequiredExtensions());
-	window.init(APP_NAME, WIDTH, HEIGHT, instance);
-	window.setScrollCallback(scrollCallback);
-	window.setMouseButtonCallback(mouseButtonCallback);
-	window.setCursorPosCallback(cursorPosCallback);
-	device.init(instance, window);
+void initDevice() {
+	PRINT_INFO("Using Physical Device:", gpu_names[chosenGPU]);
+	device.init(window, gpus[chosenGPU]);
 	swapchain.init(device, window);
 	depthImage.init(device, swapchain.getExtent());
 	renderPass.init(device, swapchain, depthImage);
@@ -212,7 +260,7 @@ void init() {
 		descriptorPool,
 		renderPass
 	);
-	gui.init(instance, device, window, swapchain);
+	gui.init(instance, device, swapchain);
 	for(Object &obj : objects) obj.vertexBuffer.init(device, sizeof(gfx::Vertex) * obj.nfacet_corners());
 	fillVertexBuffer();
 	cmdBuffs.init(device);
@@ -223,14 +271,39 @@ void init() {
 	for(gfx::Fence &f : cmdSubmitted) f.init(device, true);
 }
 
+void init() {
+	instance.init(APP_NAME, gfx::Window::getRequiredExtensions());
+	window.init(APP_NAME, WIDTH, HEIGHT, instance);
+	window.setScrollCallback(scrollCallback);
+	window.setMouseButtonCallback(mouseButtonCallback);
+	window.setCursorPosCallback(cursorPosCallback);
+	gpus = gfx::Device::getAvailableDevices(instance, window);
+	gpu_names.resize(gpus.size());
+	std::size_t names_size = 0;
+	for(VkPhysicalDevice gpu : gpus) names_size += std::strlen(gfx::Device::getProperties(gpu).deviceName)+1;
+	char* ind = __gpu_names = new char[names_size];
+	for(int i = 0; i < (int) gpus.size(); ++i) {
+		const VkPhysicalDeviceProperties prop = gfx::Device::getProperties(gpus[i]);
+		const char* name = prop.deviceName;
+		gpu_names[i] = ind;
+		while(*name) *(ind++) = *(name++);
+		*(ind++) = *(name++);
+		if(!strcmp(gpu_names[i], Config::data.preferred_gpu)) chosenGPU = i;
+	}
+	ImGui::CreateContext();
+	ImGui::GetIO().IniFilename = nullptr;
+  	ImGui_ImplGlfw_InitForVulkan(window, true);
+	initDevice();
+}
+
 void updateSwapchain() {
 	window.getFramebufferSize(width, height);
 	while(!width || !height) {
 		window.getFramebufferSize(width, height);
 		glfwWaitEvents();
 	}
-	cam.v *= zoom * float(width) / float(height) / cam.v.norm();
 	window.resetFramebufferResized();
+	cam.v *= zoom * float(width) / float(height) / cam.v.norm();
 	device.waitIdle();
 	swapchain.recreate(device, window);
 	depthImage.recreate(device, swapchain.getExtent());
@@ -245,8 +318,6 @@ void updateSwapchain() {
 
 void loop() {
 	while(!window.shouldClose()) {
-		glfwPollEvents();
-		drawImGui();
 		const uint32_t imIndex = swapchain.acquireNextImage(imageAvailable[currentFrame]);
 		if(imIndex == UINT32_MAX) {
 			updateSwapchain();
@@ -254,6 +325,8 @@ void loop() {
 		}
 		cmdSubmitted[imIndex].wait();
 		cmdSubmitted[imIndex].reset();
+		glfwPollEvents();
+		if(!drawImGui()) continue;
 		* (Camera*) descriptorPool.getUniformMap(imIndex, 0) = cam;
 		gfx::CommandBuffer cmds[] { cmdBuffs[imIndex], gui.getCommand(swapchain, imIndex) };
 		gfx::CommandBuffer::submit(cmds, std::size(cmds),
@@ -268,11 +341,12 @@ void loop() {
 	}
 }
 
-void clean() {
+void cleanDevice() {
 	device.waitIdle();
 	cmdSubmitted.clear();
 	for(gfx::Semaphore &s : renderFinished) s.clean();
 	for(gfx::Semaphore &s : imageAvailable) s.clean();
+	cmdBuffs.clear();
 	for(Object &obj : objects) obj.vertexBuffer.clean();
 	gui.clean();
 	pipeline.clean();
@@ -281,6 +355,12 @@ void clean() {
 	depthImage.clean();
 	swapchain.clean();
 	device.clean();
+}
+
+void clean() {
+	cleanDevice();
+	ImGui_ImplGlfw_Shutdown();
+	ImGui::DestroyContext();
 	window.clean();
 	instance.clean();
 }
@@ -309,6 +389,7 @@ int main(int argc, const char* argv[]) {
 
 	clean();
 	glfwTerminate();
+	// TODO: Add a gui Menu to save config
 	Config::save();
 
 	return 0;

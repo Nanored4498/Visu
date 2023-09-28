@@ -25,10 +25,12 @@ class Device {
 public:
 	~Device() { clean(); }
 
-	void init(Instance &instance, const Window &window);
+	void init(const Window &window, VkPhysicalDevice gpu);
 	void clean();
 
 	inline operator VkDevice() const { return device; }
+
+	static std::vector<VkPhysicalDevice> getAvailableDevices(const Instance &instance, const Window &window);
 
 	CommandBuffer createCommandBuffer(bool primary=true) const;
 	void allocCommandBuffers(CommandBuffer *cmdBufs, uint32_t size, bool primary=true) const;
@@ -55,11 +57,12 @@ public:
 		vkGetPhysicalDeviceSurfaceCapabilitiesKHR(gpu, window.getSurface(), &capabilities);
 		return capabilities;
 	}
-	inline VkPhysicalDeviceProperties getProperties() const {
+	inline static VkPhysicalDeviceProperties getProperties(VkPhysicalDevice gpu) {
 		VkPhysicalDeviceProperties properties;
 		vkGetPhysicalDeviceProperties(gpu, &properties);
 		return properties;
 	}
+	inline VkPhysicalDeviceProperties getProperties() const { return getProperties(gpu); }
 
 	inline VkFormatProperties getFormatProperties(VkFormat format) const {
 		VkFormatProperties formatProperties;

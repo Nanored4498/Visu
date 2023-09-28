@@ -15,7 +15,7 @@ class GUI {
 public:
 	~GUI() { clean(); }
 
-	void init(Instance &instance, const Device &device, const Window &window, const Swapchain &swapchain);
+	void init(Instance &instance, const Device &device, const Swapchain &swapchain);
 	void clean();
 
 	void update(const Swapchain &swapchain);
