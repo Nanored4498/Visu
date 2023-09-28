@@ -14,8 +14,8 @@ public:
 	void clean();
 	void cleanOld();
 
-	uint32_t acquireNextImage(Semaphore &semaphore);
-	VkResult presentImage(uint32_t imIndex, VkQueue queue, Semaphore &semaphore);
+	uint32_t acquireNextImage(Semaphore &signal);
+	VkResult presentImage(uint32_t imIndex, VkQueue queue, Semaphore &wait);
 
 	inline VkFormat getFormat() const { return format.format; }
 	inline VkExtent2D getExtent() const { return extent; }

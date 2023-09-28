@@ -122,9 +122,9 @@ void Swapchain::__cleanViews() {
 	imageViews.clear();
 }
 
-uint32_t Swapchain::acquireNextImage(Semaphore &semaphore) {
+uint32_t Swapchain::acquireNextImage(Semaphore &signal) {
 	uint32_t ind;
-	switch(vkAcquireNextImageKHR(device, swapchain, UINT64_MAX, semaphore, VK_NULL_HANDLE, &ind)) {
+	switch(vkAcquireNextImageKHR(device, swapchain, UINT64_MAX, signal, VK_NULL_HANDLE, &ind)) {
 	case VK_SUCCESS: case VK_SUBOPTIMAL_KHR:
 		return ind;
 	case VK_ERROR_OUT_OF_DATE_KHR:
@@ -134,12 +134,12 @@ uint32_t Swapchain::acquireNextImage(Semaphore &semaphore) {
 	}
 }
 
-VkResult Swapchain::presentImage(uint32_t imIndex, VkQueue queue, Semaphore &semaphore) {
+VkResult Swapchain::presentImage(uint32_t imIndex, VkQueue queue, Semaphore &wait) {
 	const VkPresentInfoKHR presentInfo {
 		.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
 		.pNext = nullptr,
 		.waitSemaphoreCount = 1u,
-		.pWaitSemaphores = &semaphore,
+		.pWaitSemaphores = &wait,
 		.swapchainCount = 1u,
 		.pSwapchains = &swapchain,
 		.pImageIndices = &imIndex,

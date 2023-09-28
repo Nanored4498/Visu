@@ -99,13 +99,18 @@ static void cursorPosCallback([[maybe_unused]] GLFWwindow *window, double xpos, 
 	} else if(cursor_mode == ROTATE) {
 		vec2 dp(xpos - xclick, yclick - ypos);
 		const double len = dp.norm();
-		dp /= len;
-		const double theta = std::numbers::pi * len / std::sqrt(width*width + height*height);
-		const vec3f a = dp.x * u0 + dp.y * v0;
-		const vec3f b = cross(u0, v0);
-		const vec3f c = (std::cos(theta) - 1.) * a + std::sin(theta) * b;
-		cam.u = zoom * (u0 + dp.x * c);
-		cam.v = zoom * float(width) / float(height) * (v0 + dp.y * c);
+		if(len < 1e-8) {
+			cam.u = zoom * u0;
+			cam.v = zoom * float(width) / float(height) * v0;
+		} else {
+			dp /= len;
+			const double theta = std::numbers::pi * len / std::sqrt(width*width + height*height);
+			const vec3f a = dp.x * u0 + dp.y * v0;
+			const vec3f b = cross(u0, v0);
+			const vec3f c = (std::cos(theta) - 1.) * a + std::sin(theta) * b;
+			cam.u = zoom * (u0 + dp.x * c);
+			cam.v = zoom * float(width) / float(height) * (v0 + dp.y * c);
+		}
 		cam.w = cross(cam.v, cam.u).normalize();
 	}
 }
