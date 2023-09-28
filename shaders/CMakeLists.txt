@@ -25,5 +25,6 @@ foreach(source IN LISTS SHADER_SOURCES)
   	)
 	list(APPEND SPV_SHADERS ${output})
 endforeach()
+message(${CMAKE_COMMAND})
 
-add_custom_target(shaders ALL DEPENDS ${SPV_SHADERS})
+add_custom_target(spv_shaders ALL DEPENDS ${SPV_SHADERS})

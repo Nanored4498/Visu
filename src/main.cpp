@@ -26,8 +26,6 @@
 #include <filesystem>
 
 const char* APP_NAME = "Visu";
-constexpr int WIDTH = 800;
-constexpr int HEIGHT = 600;
 
 class Object : public Mesh {
 public:
@@ -52,7 +50,8 @@ gfx::Semaphore imageAvailable[2], renderFinished[2];
 std::vector<gfx::Fence> cmdSubmitted;
 int currentFrame = 0;
 
-int width = WIDTH, height = HEIGHT;
+int &width = Config::data.window_width;
+int &height = Config::data.window_height;
 float zoom = 1.f;
 enum {
 	IDLE,
@@ -80,7 +79,7 @@ void initDevice();
 void cleanDevice();
 
 static void openPreferences() {
-	preferenceOpened = true;
+	preferenceOpened = !preferenceOpened;
 }
 
 static void scrollCallback([[maybe_unused]] GLFWwindow *window, [[maybe_unused]] double xoffset, double yoffset) {
@@ -196,7 +195,7 @@ static bool drawImGui() {
 	ImGui_ImplGlfw_NewFrame();
 	ImGui::NewFrame();
 
-	// ImGui::ShowDemoWindow();
+	ImGui::ShowDemoWindow();
 
 	// Main Menu Bar
 	if(ImGui::BeginMainMenuBar()) {
@@ -241,6 +240,7 @@ static bool drawImGui() {
 			ImGui::Separator();
 			if(ImGui::Button("Save")) {
 				std::strcpy(Config::data.preferred_gpu, gpu_names[chosenGPU]);
+				glfwGetWindowPos(window, &Config::data.window_x, &Config::data.window_y);
 				Config::save();
 				ImGui::GetIO().WantSaveIniSettings = true;
 				ImGui::SaveIniSettingsToDisk(BUILD_DIR "/imgui.ini");
@@ -249,6 +249,8 @@ static bool drawImGui() {
 			ImGui::SameLine();
 			if(ImGui::Button("Reload")) {
 				Config::load();
+				glfwSetWindowPos(window, Config::data.window_x, Config::data.window_y);
+				glfwSetWindowSize(window, Config::data.window_width, Config::data.window_height);
 				for(int i = 0; i < (int) gpus.size(); ++i)
 					if(i != chosenGPU && !strcmp(gpu_names[i], Config::data.preferred_gpu)) {
 						chosenGPU = i;
@@ -317,7 +319,9 @@ void initDevice() {
 
 void init() {
 	instance.init(APP_NAME, gfx::Window::getRequiredExtensions());
-	window.init(APP_NAME, WIDTH, HEIGHT, instance);
+	window.init(instance, APP_NAME,
+		width = Config::data.window_width, height = Config::data.window_height,
+		Config::data.window_x, Config::data.window_y);
 	window.setScrollCallback(scrollCallback);
 	window.setMouseButtonCallback(mouseButtonCallback);
 	window.setCursorPosCallback(cursorPosCallback);

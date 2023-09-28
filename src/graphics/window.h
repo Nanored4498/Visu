@@ -14,7 +14,7 @@ class Window {
 public:
 	~Window() { clean(); }
 
-	void init(const char* name, int width, int height, Instance &instance);
+	void init(Instance &instance, const char* name, int width, int height, int x=-1, int y=-1);
 	void clean();
 
 	inline operator GLFWwindow*() const { return window; }
