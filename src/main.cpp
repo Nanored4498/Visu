@@ -84,6 +84,7 @@ static void openPreferences() {
 }
 
 static void scrollCallback([[maybe_unused]] GLFWwindow *window, [[maybe_unused]] double xoffset, double yoffset) {
+	if(ImGui::IsWindowHovered(ImGuiHoveredFlags_AnyWindow)) return;
 	zoom *= std::pow(1.1, yoffset);
 	cam.u *= zoom / cam.u.norm();
 	cam.v *= zoom * float(width) / float(height) / cam.v.norm();
@@ -195,6 +196,8 @@ static bool drawImGui() {
 	ImGui_ImplGlfw_NewFrame();
 	ImGui::NewFrame();
 
+	// ImGui::ShowDemoWindow();
+
 	// Main Menu Bar
 	if(ImGui::BeginMainMenuBar()) {
 		if(ImGui::BeginMenu("File")) {
@@ -219,13 +222,21 @@ static bool drawImGui() {
 
 	if(preferenceOpened) {
 		if(ImGui::Begin("Preferences", &preferenceOpened)) {
-			const int oldGPU = chosenGPU;
-			if(ImGui::ListBox("GPU", &chosenGPU, gpu_names.data(), (int) gpu_names.size()) && oldGPU != chosenGPU) {
-				cleanDevice();
-				initDevice();
-				ImGui::End();
-				ImGui::EndFrame();
-				return false;
+			if(ImGui::BeginCombo("GPU", gpu_names[chosenGPU])) {
+				for(int i = 0; i < (int) gpus.size(); ++i) {
+					const bool selected = i == chosenGPU;
+					if(ImGui::Selectable(gpu_names[i], selected) && !selected) {
+						chosenGPU = i;
+						cleanDevice();
+						initDevice();
+            			ImGui::EndCombo();
+						ImGui::End();
+						ImGui::EndFrame();
+						return false;
+					}
+					if(selected) ImGui::SetItemDefaultFocus();
+				}
+            	ImGui::EndCombo();
 			}
 			ImGui::Separator();
 			if(ImGui::Button("Save")) {
