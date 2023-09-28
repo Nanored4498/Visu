@@ -203,27 +203,45 @@ static bool drawImGui() {
 	}
 
 	if(preferenceOpened) {
-		ImGui::Begin("Preferences");
-		if(ImGui::ListBox("GPU", &chosenGPU, gpu_names.data(), (int) gpu_names.size())) {
-			// TODO: Maybe updating chosenGPU is sufficient
-			std::strcpy(Config::data.preferred_gpu, gpu_names[chosenGPU]);
-			cleanDevice();
-			initDevice();
-			ImGui::End();
-			ImGui::EndFrame();
-			return false;
-		}
-		ImGui::Separator();
-		if(ImGui::Button("Quit")) {
-			preferenceOpened = false;
+		if(ImGui::Begin("Preferences", &preferenceOpened)) {
+			const int oldGPU = chosenGPU;
+			if(ImGui::ListBox("GPU", &chosenGPU, gpu_names.data(), (int) gpu_names.size()) && oldGPU != chosenGPU) {
+				cleanDevice();
+				initDevice();
+				ImGui::End();
+				ImGui::EndFrame();
+				return false;
+			}
+			ImGui::Separator();
+			if(ImGui::Button("Save")) {
+				std::strcpy(Config::data.preferred_gpu, gpu_names[chosenGPU]);
+				Config::save();
+				ImGui::GetIO().WantSaveIniSettings = true;
+				ImGui::SaveIniSettingsToDisk(BUILD_DIR "/imgui.ini");
+				ImGui::GetIO().WantSaveIniSettings = false;
+			}
+			ImGui::SameLine();
+			if(ImGui::Button("Reload")) {
+				Config::load();
+				for(int i = 0; i < (int) gpus.size(); ++i)
+					if(i != chosenGPU && !strcmp(gpu_names[i], Config::data.preferred_gpu)) {
+						chosenGPU = i;
+						cleanDevice();
+						initDevice();
+						ImGui::End();
+						ImGui::EndFrame();
+						return false;
+					}
+			}
 		}
 		ImGui::End();
 	}
 
 	for(Object &obj :objects) {
-		ImGui::Begin((obj.name + " properties").c_str());
-		if(ImGui::Checkbox("Smooth Shading", &smooth_shading)) fillVertexBuffer();
-		ImGui::ColorEdit3("Surface Color", obj.surfaceColor);
+		if(ImGui::Begin((obj.name + " properties").c_str())) {
+			if(ImGui::Checkbox("Smooth Shading", &smooth_shading)) fillVertexBuffer();
+			ImGui::ColorEdit3("Surface Color", obj.surfaceColor);
+		}
 		ImGui::End();
 	}
 	ImGui::Render();
@@ -292,6 +310,7 @@ void init() {
 	}
 	ImGui::CreateContext();
 	ImGui::GetIO().IniFilename = nullptr;
+	ImGui::LoadIniSettingsFromDisk(BUILD_DIR "/imgui.ini");
   	ImGui_ImplGlfw_InitForVulkan(window, true);
 	initDevice();
 }
@@ -389,8 +408,6 @@ int main(int argc, const char* argv[]) {
 
 	clean();
 	glfwTerminate();
-	// TODO: Add a gui Menu to save config
-	Config::save();
 
 	return 0;
 }
