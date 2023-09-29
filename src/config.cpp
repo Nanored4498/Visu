@@ -1,3 +1,7 @@
+// Copyright (C) 2023, Coudert--Osmont Yoann
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// See <https://www.gnu.org/licenses/>
+
 #include "config.h"
 
 #include <cstring>
@@ -24,11 +28,13 @@ void load() {
 	std::ifstream f(BUILD_DIR "/visu.ini");
 	std::string line;
 	while(std::getline(f, line)) {
+		// TODO: change the consecutives if by a tree
 		__config_load_str(line, "gfx:preferred_gpu", data.preferred_gpu)
 		else __config_load_int(line, "window:x", data.window_x)
 		else __config_load_int(line, "window:y", data.window_y)
 		else __config_load_int(line, "window:width", data.window_width)
 		else __config_load_int(line, "window:height", data.window_height)
+		else __config_load_int(line, "gui:style", data.style)
 	}
 	f.close();
 }
@@ -40,6 +46,7 @@ void save() {
 	f << "window:y=" << data.window_y << '\n';
 	f << "window:width=" << data.window_width << '\n';
 	f << "window:height=" << data.window_height << '\n';
+	f << "gui:style=" << data.style << '\n';
 	f.close();
 }
 

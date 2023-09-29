@@ -69,17 +69,30 @@ struct Camera {
 	vec3f(0, 0, -1)
 };
 bool smooth_shading = false;
+
+//== Preferences ==//
+bool preferenceOpened = false;
 std::vector<VkPhysicalDevice> gpus;
 char* __gpu_names = nullptr;
 std::vector<const char*> gpu_names;
 int chosenGPU = 0;
-bool preferenceOpened = false;
+const char* styles[] { "Light", "Dark", "Classic" };
+int &chosenStyle = Config::data.style;
+//=================//
 
 void initDevice();
 void cleanDevice();
 
 static void openPreferences() {
 	preferenceOpened = !preferenceOpened;
+}
+
+static void setStyle() {
+	switch(chosenStyle) {
+		case 0: ImGui::StyleColorsLight(); break;
+		case 1: ImGui::StyleColorsDark(); break;
+		default: ImGui::StyleColorsClassic();
+	}
 }
 
 static void scrollCallback([[maybe_unused]] GLFWwindow *window, [[maybe_unused]] double xoffset, double yoffset) {
@@ -170,6 +183,7 @@ void fillVertexBuffer() {
 				if(obj.facet_corner_attributes.empty()) vmap[fc].uv = vec2f(0.);
 				else vmap[fc].uv = obj.facet_corner_attributes[0].uv[fc];
 			}
+			// TODO: copy use submit OT that wait for the command to finish: No need for sync here
 			gfx::Buffer::copy(device, tmp, obj.vertexBuffer, size);
 		}
 	} else {
@@ -184,8 +198,24 @@ void fillVertexBuffer() {
 				if(obj.facet_corner_attributes.empty()) vmap[fc].uv = vec2f(0.);
 				else vmap[fc].uv = obj.facet_corner_attributes[0].uv[fc];
 			}
+			// TODO: copy use submit OT that wait for the command to finish: No need for sync here
 			gfx::Buffer::copy(device, tmp, obj.vertexBuffer, size);
 		}
+	}
+}
+
+template<typename Fun>
+static void myCombo(const char* label, const int nitems, const char* items[], int &choice, Fun fun) {
+	if(ImGui::BeginCombo(label, items[choice])) {
+		for(int i = 0; i < nitems; ++i) {
+			const bool selected = i == choice;
+			if(ImGui::Selectable(items[i], selected) && !selected) {
+				choice = i;
+				fun();
+			}
+			if(selected) ImGui::SetItemDefaultFocus();
+		}
+    	ImGui::EndCombo();
 	}
 }
 
@@ -195,7 +225,8 @@ static bool drawImGui() {
 	ImGui_ImplGlfw_NewFrame();
 	ImGui::NewFrame();
 
-	ImGui::ShowDemoWindow();
+	bool draw = true;
+	// ImGui::ShowDemoWindow();
 
 	// Main Menu Bar
 	if(ImGui::BeginMainMenuBar()) {
@@ -221,22 +252,8 @@ static bool drawImGui() {
 
 	if(preferenceOpened) {
 		if(ImGui::Begin("Preferences", &preferenceOpened)) {
-			if(ImGui::BeginCombo("GPU", gpu_names[chosenGPU])) {
-				for(int i = 0; i < (int) gpus.size(); ++i) {
-					const bool selected = i == chosenGPU;
-					if(ImGui::Selectable(gpu_names[i], selected) && !selected) {
-						chosenGPU = i;
-						cleanDevice();
-						initDevice();
-            			ImGui::EndCombo();
-						ImGui::End();
-						ImGui::EndFrame();
-						return false;
-					}
-					if(selected) ImGui::SetItemDefaultFocus();
-				}
-            	ImGui::EndCombo();
-			}
+			myCombo("Style", std::size(styles), styles, chosenStyle, setStyle);
+			myCombo("GPU", gpus.size(), gpu_names.data(), chosenGPU, [&](){ draw = false; });
 			ImGui::Separator();
 			if(ImGui::Button("Save")) {
 				std::strcpy(Config::data.preferred_gpu, gpu_names[chosenGPU]);
@@ -251,14 +268,12 @@ static bool drawImGui() {
 				Config::load();
 				glfwSetWindowPos(window, Config::data.window_x, Config::data.window_y);
 				glfwSetWindowSize(window, Config::data.window_width, Config::data.window_height);
+				setStyle();
 				for(int i = 0; i < (int) gpus.size(); ++i)
 					if(i != chosenGPU && !strcmp(gpu_names[i], Config::data.preferred_gpu)) {
 						chosenGPU = i;
-						cleanDevice();
-						initDevice();
-						ImGui::End();
-						ImGui::EndFrame();
-						return false;
+						draw = false;
+						break;
 					}
 			}
 		}
@@ -272,8 +287,9 @@ static bool drawImGui() {
 		}
 		ImGui::End();
 	}
+
 	ImGui::Render();
-	return true;
+	return draw;
 }
 
 void initCmdBuffs() {
@@ -339,10 +355,20 @@ void init() {
 		*(ind++) = *(name++);
 		if(!strcmp(gpu_names[i], Config::data.preferred_gpu)) chosenGPU = i;
 	}
+
+	// Imgui init
 	ImGui::CreateContext();
 	ImGui::GetIO().IniFilename = nullptr;
 	ImGui::LoadIniSettingsFromDisk(BUILD_DIR "/imgui.ini");
+	setStyle();
+	ImGui::PushStyleVar(ImGuiStyleVar_GrabRounding, 4.f);
+	ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 5.f);
+	ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 5.f);
+	ImGui::PushStyleVar(ImGuiStyleVar_ScrollbarSize, 16.f);
+	ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(5, 5));
   	ImGui_ImplGlfw_InitForVulkan(window, true);
+
+	// Init device
 	initDevice();
 }
 
@@ -376,7 +402,11 @@ void loop() {
 		cmdSubmitted[imIndex].wait();
 		cmdSubmitted[imIndex].reset();
 		glfwPollEvents();
-		if(!drawImGui()) continue;
+		if(!drawImGui()) {
+			cleanDevice();
+			initDevice();
+			continue;
+		}
 		* (Camera*) descriptorPool.getUniformMap(imIndex, 0) = cam;
 		gfx::CommandBuffer cmds[] { cmdBuffs[imIndex], gui.getCommand(swapchain, imIndex) };
 		gfx::CommandBuffer::submit(cmds, std::size(cmds),
