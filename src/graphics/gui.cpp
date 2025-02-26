@@ -22,7 +22,7 @@ void GUIRenderPass::init(const Device &device, const Swapchain &swapchain) {
 			.storeOp = VK_ATTACHMENT_STORE_OP_STORE,
 			.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
 			.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
-			.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+			.initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
 			.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
 		}
 	};
@@ -42,15 +42,6 @@ void GUIRenderPass::init(const Device &device, const Swapchain &swapchain) {
 		.preserveAttachmentCount = 0u,
 		.pPreserveAttachments = nullptr
 	};
-	const VkSubpassDependency dependcy {
-		.srcSubpass = VK_SUBPASS_EXTERNAL,
-		.dstSubpass = 0u,
-		.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-		.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-		.srcAccessMask = VK_ACCESS_NONE,
-		.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
-		.dependencyFlags = 0u
-	};
 	const VkRenderPassCreateInfo passInfo {
 		.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
 		.pNext = nullptr,
@@ -59,8 +50,8 @@ void GUIRenderPass::init(const Device &device, const Swapchain &swapchain) {
 		.pAttachments = attachments,
 		.subpassCount = 1u,
 		.pSubpasses = &subpass,
-		.dependencyCount = 1u,
-		.pDependencies = &dependcy
+		.dependencyCount = 0u,
+		.pDependencies = nullptr
 	};
 	if(vkCreateRenderPass(this->device = device, &passInfo, nullptr, &pass) != VK_SUCCESS)
 		THROW_ERROR("failed to create gui render pass!");
@@ -84,7 +75,7 @@ void GUIRenderPass::initFramebuffers(const Swapchain &swapchain) {
 	};
 	framebuffers.resize(swapchain.size());
 	for(std::size_t i = 0; i < framebuffers.size(); ++i) {
-		attachment = swapchain[i];
+		attachment = swapchain.getView(i);
 		if(vkCreateFramebuffer(device, &framebufferInfo, nullptr, &framebuffers[i]) != VK_SUCCESS)
 			THROW_ERROR("failed to create gui framebuffer!");
 	}
@@ -131,25 +122,34 @@ void GUI::init(Instance &instance, const Device &device, const Swapchain &swapch
 		.Device = device,
 		.QueueFamily = device.getQueueFamilies().graphicsId,
 		.Queue = device.getGraphicsQueue(),
-		.PipelineCache = nullptr,
 		.DescriptorPool = descriptorPool,
-		.Subpass = 0u,
+		.RenderPass = renderPass,
 		// TODO: As swapchain could be resized need to rethink...
 		.MinImageCount = (uint32_t) swapchain.size(),
 		.ImageCount = (uint32_t) swapchain.size(),
 		.MSAASamples = VK_SAMPLE_COUNT_1_BIT,
+		// (Optional)
+		.PipelineCache = nullptr,
+		.Subpass = 0u,
+		// (Optional) Dynamic Rendering
+		// TODO: What is???
 		.UseDynamicRendering = false,
-		.ColorAttachmentFormat = VK_FORMAT_UNDEFINED,
+		.PipelineRenderingCreateInfo = {
+			.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO,
+			.pNext = nullptr,
+			.viewMask = 0u,
+			.colorAttachmentCount = 0u,
+			.pColorAttachmentFormats = nullptr,
+			.depthAttachmentFormat = VK_FORMAT_UNDEFINED,
+			.stencilAttachmentFormat = VK_FORMAT_UNDEFINED
+		},
+		// (Optional) Allocation, Debugging
 		.Allocator = nullptr,
-		.CheckVkResultFn = nullptr
+		.CheckVkResultFn = nullptr,
+		.MinAllocationSize = 0u
 	};
-	ImGui_ImplVulkan_Init(&info, renderPass);
-
-	//execute a gpu command to upload imgui font textures
-	auto cmd = device.createCommandBuffer().beginOT();
-	ImGui_ImplVulkan_CreateFontsTexture(cmd);
-	cmd.end().submitOT(device, device.getGraphicsQueue());
-	ImGui_ImplVulkan_DestroyFontUploadObjects();
+	ImGui_ImplVulkan_Init(&info);
+	ImGui_ImplVulkan_CreateFontsTexture();
 }
 
 void GUI::clean() {
@@ -167,7 +167,9 @@ void GUI::update(const Swapchain &swapchain) {
 }
 
 CommandBuffer& GUI::getCommand(const Swapchain &swapchain, const uint32_t i) {
-	cmdBufs[i].beginOT().beginRenderPass(renderPass, swapchain, i);
+	cmdBufs[i].beginOT()
+		.imageBarrier(swapchain.getImage(i))
+		.beginRenderPass(renderPass, swapchain, i);
   	ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmdBufs[i]);
 	return cmdBufs[i].endRenderPass().end();
 }

@@ -17,11 +17,14 @@ void Swapchain::init(const Device &device, const Window &window) {
 	constexpr VkColorSpaceKHR desiredColorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
 	const std::vector<VkSurfaceFormatKHR> formats = device.getSurfaceFormats(window);
 	format = formats[0];
-	for(const VkSurfaceFormatKHR &f : formats) {
+	if(formats.size() > 1) for(const VkSurfaceFormatKHR &f : formats) {
 		int score = int(f.format == desiredFormat) + int(f.colorSpace == desiredColorSpace);
 		if(!score) continue;
 		format = f;
 		if(score == 2) break;
+	} else if(format.format == VK_FORMAT_UNDEFINED) {
+		format.format = desiredFormat;
+		format.colorSpace = desiredColorSpace;
 	}
 	if(format.format != desiredFormat) DEBUG_MSG("WARNING: Desired image format (B8G8R8A8_SRGB) not available: using", format.format, "instead...");
 	if(format.colorSpace != desiredColorSpace) DEBUG_MSG("WARNING: Desired color space (SRGB_NONLINEAR_KHR) not available: using", format.colorSpace, "instead...");
@@ -90,7 +93,7 @@ void Swapchain::__init(const Device &device, const Window &window) {
 		THROW_ERROR("failed to create swap chain!");
 
 	// Get swapchain image views
-	const std::vector<VkImage> images = vkGetList(vkGetSwapchainImagesKHR, (VkDevice) device, swapchain);
+	images = vkGetList(vkGetSwapchainImagesKHR, (VkDevice) device, swapchain);
 	imageViews.resize(images.size());
 	for(std::size_t i = 0; i < images.size(); ++i)
 		imageViews[i] = Image::createView(device, images[i], 2, format.format, VK_IMAGE_ASPECT_COLOR_BIT);

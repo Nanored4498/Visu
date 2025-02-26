@@ -41,18 +41,20 @@ void Instance::init(const char* name, const Extensions &requiredExtensions) {
 
 	// Required extensions
 	std::vector<const char*> reqExtensions(requiredExtensions.exts, requiredExtensions.exts + requiredExtensions.count);
-	#ifdef __APPLE__
-		reqExtensions.emplace_back(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
-		reqExtensions.emplace_back(VK_KHR_get_physical_device_properties2);
-	#endif
 	const std::vector<VkExtensionProperties> extensions = vkGetList(vkEnumerateInstanceExtensionProperties, nullptr);
-	for(const char* ext : reqExtensions)
-		if(std::ranges::find_if(extensions, [&](const VkExtensionProperties &e) { return !strcmp(e.extensionName, ext); }) == extensions.end())
-			THROW_ERROR(std::string("The required extension ") + ext + " is not available...");
+	const auto extensionAvailable = [&](const char *ext) {
+		return std::ranges::find_if(extensions, [&](const VkExtensionProperties &e) { return !strcmp(e.extensionName, ext); }) != extensions.end();
+	};
+	for(const char* ext : reqExtensions) if(!extensionAvailable(ext))
+		THROW_ERROR(std::string("The required extension ") + ext + " is not available...");
+	if(extensionAvailable(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME))
+		reqExtensions.emplace_back(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
+	#ifdef VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME
+		if(extensionAvailable(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME))
+			reqExtensions.emplace_back(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
+	#endif
 	#ifndef NDEBUG
-		const bool debug_utils = std::ranges::find_if(extensions, [&](const VkExtensionProperties &e) {
-			return !strcmp(e.extensionName, VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
-		}) != extensions.end(); 
+		const bool debug_utils = extensionAvailable(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
 		if(debug_utils) reqExtensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
 	#endif
 

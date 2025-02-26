@@ -19,7 +19,7 @@ void RenderPass::init(const Device &device, const Swapchain &swapchain, const De
 			.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
 			.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
 			.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-			.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
+			.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
 		}, { // Depth
 			.flags = 0u,
 			.format = depthImage.getFormat(),
@@ -78,14 +78,14 @@ void RenderPass::init(const Device &device, const Swapchain &swapchain, const De
 		.pPreserveAttachments = nullptr
 	};
 
-	// TODO: Understand dependencies! Could it be split in two dependencies from extern to 0, one for color, another for depth?
+	// TODO: Maybe split in read->write and write->read
 	const VkSubpassDependency dependcy {
 		.srcSubpass = VK_SUBPASS_EXTERNAL,
 		.dstSubpass = 0u,
-		.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT,
-		.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT,
-		.srcAccessMask = VK_ACCESS_NONE,
-		.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+		.srcStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT,
+		.dstStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT,
+		.srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+		.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
 		.dependencyFlags = 0u
 	};
 
@@ -108,7 +108,7 @@ void RenderPass::init(const Device &device, const Swapchain &swapchain, const De
 }
 
 void RenderPass::initFramebuffers(const Swapchain &swapchain, const DepthImage &depthImage) {
-	cleanFramebuffers();
+	ASSERT(framebuffers.empty());
 	VkFramebufferCreateInfo framebufferInfo {
 		.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
 		.pNext = nullptr,
@@ -123,7 +123,7 @@ void RenderPass::initFramebuffers(const Swapchain &swapchain, const DepthImage &
 	framebuffers.resize(swapchain.size());
 	for(std::size_t i = 0; i < framebuffers.size(); ++i) {
 		std::vector<VkImageView> attachments {
-			swapchain[i],
+			swapchain.getView(i),
 			depthImage.getView()
 		};
 		/*

@@ -5,6 +5,7 @@
 
 namespace gfx {
 
+// TODO: Maybe make it a subpass of main renderpass
 class GUIRenderPass : public RenderPass {
 public:
 	void init(const Device &device, const Swapchain &swapchain);

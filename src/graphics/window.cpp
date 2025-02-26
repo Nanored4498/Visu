@@ -8,6 +8,8 @@ void Window::init(Instance &instance, const char* name, int width, int height, i
 	clean();
 	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 	window = glfwCreateWindow(width, height, name, nullptr, nullptr);
+	if(!glfwVulkanSupported())
+		THROW_ERROR("GLFW does not support Vulkan...");
 	glfwSetWindowPos(window, x, y);
 	glfwSetWindowUserPointer(window, this);
 	glfwSetFramebufferSizeCallback(window, framebufferSizeCallback);

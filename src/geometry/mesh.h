@@ -32,11 +32,11 @@ public:
 		}
 	}
 
-	Attribute(Attribute&& a): name(move(a.name)), type(a.type) {
+	Attribute(Attribute&& a): name(std::move(a.name)), type(a.type) {
 		switch(type) {
-			case INTEGER: new(&iu) decltype(iu)(move(a.iu)); break;
-			case SCALAR: new(&u) decltype(u)(move(a.u)); break;
-			case VEC2: new(&uv) decltype(uv)(move(a.uv)); break;
+			case INTEGER: new(&iu) decltype(iu)(std::move(a.iu)); break;
+			case SCALAR: new(&u) decltype(u)(std::move(a.u)); break;
+			case VEC2: new(&uv) decltype(uv)(std::move(a.uv)); break;
 		}
 	}
 

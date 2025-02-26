@@ -15,9 +15,6 @@ const uint32_t QueueFamilies::NOT_AN_ID = std::numeric_limits<uint32_t>::max();
 
 static const char* RequiredExtensions[] {
 	VK_KHR_SWAPCHAIN_EXTENSION_NAME
-	#ifdef __APPLE__
-	, VK_KHR_portability_subset
-	#endif
 };
 
 static QueueFamilies findQueueFamilies(VkPhysicalDevice device, VkSurfaceKHR surface) {
@@ -37,6 +34,12 @@ static QueueFamilies findQueueFamilies(VkPhysicalDevice device, VkSurfaceKHR sur
 	return indices;
 }
 
+static inline bool extensionAvailable(const std::vector<VkExtensionProperties> &properties, const char* extension) {
+	return std::ranges::find_if(properties, [&](const VkExtensionProperties &e) {
+		return !strcmp(e.extensionName, extension);
+	}) != properties.end();
+}
+
 static bool isPhysicalDeviceSuitable(VkPhysicalDevice gpu, VkSurfaceKHR surface) {
 	// Need geometry shader
 	VkPhysicalDeviceFeatures deviceFeatures;
@@ -48,9 +51,9 @@ static bool isPhysicalDeviceSuitable(VkPhysicalDevice gpu, VkSurfaceKHR surface)
 	if(!queueIndices.correct()) return false;
 
 	// Check extensions
-	const std::vector<VkExtensionProperties> extensions = vkGetList(vkEnumerateDeviceExtensionProperties, gpu, nullptr);
+	const std::vector<VkExtensionProperties> properties = vkGetList(vkEnumerateDeviceExtensionProperties, gpu, nullptr);
 	for(const char* ext : RequiredExtensions)
-		if(std::ranges::find_if(extensions, [&](const VkExtensionProperties &e) { return !strcmp(e.extensionName, ext); }) == extensions.end())
+		if(!extensionAvailable(properties, ext))
 			return false;
 
 	// Check format and present mode availability
@@ -94,6 +97,13 @@ void Device::init(const Window &window, VkPhysicalDevice gpu) {
 	addQ(queueFamilies.graphicsId);
 	if(queueFamilies.presentId != queueFamilies.graphicsId) addQ(queueFamilies.presentId);
 
+	std::vector<const char*> extensions(RequiredExtensions, RequiredExtensions + std::size(RequiredExtensions));
+	#ifdef VK_KHR_PORTABILITY_SUBSET_EXTENSION_NAME
+	const std::vector<VkExtensionProperties> properties = vkGetList(vkEnumerateDeviceExtensionProperties, gpu, nullptr);
+	if(extensionAvailable(properties, VK_KHR_PORTABILITY_SUBSET_EXTENSION_NAME))
+		extensions.push_back(VK_KHR_PORTABILITY_SUBSET_EXTENSION_NAME);
+	#endif
+
 	features = {};
 	// VkPhysicalDeviceFeatures deviceFeatures;
 	// vkGetPhysicalDeviceFeatures(gpu, &deviceFeatures);
@@ -108,8 +118,8 @@ void Device::init(const Window &window, VkPhysicalDevice gpu) {
 		.pQueueCreateInfos = queueInfos.data(),
 		.enabledLayerCount = 0u,
 		.ppEnabledLayerNames = nullptr,
-		.enabledExtensionCount = std::size(RequiredExtensions),
-		.ppEnabledExtensionNames = RequiredExtensions,
+		.enabledExtensionCount = (uint32_t) extensions.size(),
+		.ppEnabledExtensionNames = extensions.data(),
 		.pEnabledFeatures = &features
 	};
 	#ifndef NDEBUG

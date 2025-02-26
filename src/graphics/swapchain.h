@@ -22,13 +22,15 @@ public:
 	inline uint32_t getWidth() const { return extent.width; }
 	inline uint32_t getHeight() const { return extent.height; }
 	inline std::size_t size() const { return imageViews.size(); }
-	inline VkImageView operator[](std::size_t i) const { return imageViews[i]; }
+	inline VkImage getImage(std::size_t i) const { return images[i]; }
+	inline VkImageView getView(std::size_t i) const { return imageViews[i]; }
 
 private:
 	VkSwapchainKHR swapchain = nullptr, old = nullptr;
 	VkSurfaceFormatKHR format;
 	VkPresentModeKHR presentMode;
 	VkExtent2D extent;
+	std::vector<VkImage> images;
 	std::vector<VkImageView> imageViews;
 
 	VkDevice device;

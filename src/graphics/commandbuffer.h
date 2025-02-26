@@ -122,6 +122,60 @@ public:
 		return *this;
 	}
 
+	inline CommandBuffer& updateBuffer(Buffer &buffer, VkDeviceSize offset, VkDeviceSize size, const void* data) {
+		vkCmdUpdateBuffer(cmd, buffer, offset, size, data);
+		return *this;
+	}
+
+	inline CommandBuffer& bufferBarrier(const Buffer &buffer, VkDeviceSize offset, VkDeviceSize size) {
+		const VkBufferMemoryBarrier barrier {
+			.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
+			.pNext = nullptr,
+			.srcAccessMask = VK_ACCESS_HOST_WRITE_BIT,
+			.dstAccessMask = VK_ACCESS_UNIFORM_READ_BIT,
+			.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+			.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+			.buffer = buffer,
+			.offset = offset,
+			.size = size
+		};
+		vkCmdPipelineBarrier(cmd,
+			VK_PIPELINE_STAGE_HOST_BIT,
+			VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+			0u, 0u, nullptr,
+			1u, &barrier,
+			0u, nullptr);
+		return *this;
+	}
+
+	inline CommandBuffer& imageBarrier(VkImage image) {
+		const VkImageMemoryBarrier barrier {
+			.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+			.pNext = nullptr,
+			.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+			.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT,
+			.oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+			.newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+			.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+			.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+			.image = image,
+			.subresourceRange = {
+				.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+				.baseMipLevel = 0u,
+				.levelCount = 1u,
+				.baseArrayLayer = 0u,
+				.layerCount = 1u
+			}
+		};
+		vkCmdPipelineBarrier(cmd,
+			VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+			VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+			0u, 0u, nullptr,
+			0u, nullptr,
+			1u, &barrier);
+		return *this;
+	}
+
 	struct SubmitSync {
 		Semaphore imageAvailable, renderFinished;
 		Fence inFlight;
@@ -187,6 +241,7 @@ public:
 	~CommandBuffers() { clear(); }
 	inline void init(const Device &device) { this->device = &device; }
 	inline void resize(const std::size_t size, const bool primary=true) {
+		ASSERT(device);
 		const std::size_t s = cmds.size();
 		if(size < s) device->freeCommandBuffers(cmds.data() + size, s-size);
 		cmds.resize(size);

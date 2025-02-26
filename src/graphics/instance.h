@@ -54,7 +54,7 @@ auto vkGetList(auto (&f)(Args0...), Args... args) {
 
 template<typename... Args0, typename... Args>
 uint32_t vkGetListSize(auto (&f)(Args0...), Args... args) {
-	uint32_t count = 0; f(args..., &count, nullptr);
+	uint32_t count = 0u; f(args..., &count, nullptr);
 	return count;
 }
 

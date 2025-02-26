@@ -6,9 +6,11 @@
 #include <iostream>
 #include <unordered_map>
 
+extern "C" {
 #include <lua.h>
 #include <lualib.h>
 #include <lauxlib.h>
+}
 
 namespace Lua {
 
@@ -206,8 +208,9 @@ struct Class {
 	inline Class<T>& fun(const char* name, Ret(U::*f)(Args...) const) { return fun(name, reinterpret_cast<Ret(U::*)(Args...)>(f)); }
 
 	template<typename V>
-	Class<T>& var(const char* name, V T::*v) {
-		vars.emplace(name, VarAccess(*reinterpret_cast<int*>(&v), callGetter<V>, callSetter<V>));
+	Class<T>& var(const char* name, V T::* v) {
+		const int offset = (int)reinterpret_cast<std::ptrdiff_t>(&(reinterpret_cast<T const volatile*>(0)->*v));
+		vars.emplace(name, VarAccess(offset, callGetter<V>, callSetter<V>));
 		return *this;
 	}
 

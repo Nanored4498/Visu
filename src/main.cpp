@@ -45,8 +45,8 @@ gfx::RenderPass renderPass;
 gfx::DescriptorPool descriptorPool;
 gfx::Pipeline pipeline;
 gfx::GUI gui;
-gfx::CommandBuffers cmdBuffs;
-gfx::Semaphore imageAvailable[2], renderFinished[2];
+gfx::CommandBuffers cmdBuffs, uniCmdBuffs;
+gfx::Semaphore imageAvailable[20], renderFinished[20];
 std::vector<gfx::Fence> cmdSubmitted;
 int currentFrame = 0;
 
@@ -266,8 +266,6 @@ static bool drawImGui() {
 			ImGui::SameLine();
 			if(ImGui::Button("Reload")) {
 				Config::load();
-				glfwSetWindowPos(window, Config::data.window_x, Config::data.window_y);
-				glfwSetWindowSize(window, Config::data.window_width, Config::data.window_height);
 				setStyle();
 				for(int i = 0; i < (int) gpus.size(); ++i)
 					if(i != chosenGPU && !strcmp(gpu_names[i], Config::data.preferred_gpu)) {
@@ -327,6 +325,8 @@ void initDevice() {
 	fillVertexBuffer();
 	cmdBuffs.init(device);
 	initCmdBuffs();
+	uniCmdBuffs.init(device);
+	uniCmdBuffs.resize(renderPass.size());
 	for(gfx::Semaphore &s : imageAvailable) s.init(device);
 	for(gfx::Semaphore &s : renderFinished) s.init(device);
 	cmdSubmitted.resize(cmdBuffs.size());
@@ -334,7 +334,10 @@ void initDevice() {
 }
 
 void init() {
+	// Vulkan instance
 	instance.init(APP_NAME, gfx::Window::getRequiredExtensions());
+
+	// Window
 	window.init(instance, APP_NAME,
 		width = Config::data.window_width, height = Config::data.window_height,
 		Config::data.window_x, Config::data.window_y);
@@ -342,6 +345,8 @@ void init() {
 	window.setMouseButtonCallback(mouseButtonCallback);
 	window.setCursorPosCallback(cursorPosCallback);
 	window.setKeyCallback(keyCallback);
+
+	// GPUs list
 	gpus = gfx::Device::getAvailableDevices(instance, window);
 	gpu_names.resize(gpus.size());
 	std::size_t names_size = 0;
@@ -375,23 +380,26 @@ void init() {
 void updateSwapchain() {
 	window.getFramebufferSize(width, height);
 	while(!width || !height) {
-		window.getFramebufferSize(width, height);
 		glfwWaitEvents();
+		window.getFramebufferSize(width, height);
 	}
 	window.resetFramebufferResized();
 	cam.v *= zoom * float(width) / float(height) / cam.v.norm();
 	device.waitIdle();
+	renderPass.cleanFramebuffers();
 	swapchain.recreate(device, window);
 	depthImage.recreate(device, swapchain.getExtent());
 	renderPass.initFramebuffers(swapchain, depthImage);
 	gui.update(swapchain);
 	//TODO: Maybe descriptor pool should be resized
 	initCmdBuffs();
+	uniCmdBuffs.resize(renderPass.size());
 	cmdSubmitted.resize(cmdBuffs.size());
 	for(gfx::Fence &f : cmdSubmitted) if(!f) f.init(device, true);
 	swapchain.cleanOld();
 }
 
+long long rendered_frames = 0;
 void loop() {
 	while(!window.shouldClose()) {
 		const uint32_t imIndex = swapchain.acquireNextImage(imageAvailable[currentFrame]);
@@ -407,8 +415,12 @@ void loop() {
 			initDevice();
 			continue;
 		}
-		* (Camera*) descriptorPool.getUniformMap(imIndex, 0) = cam;
-		gfx::CommandBuffer cmds[] { cmdBuffs[imIndex], gui.getCommand(swapchain, imIndex) };
+		// TODO: Look at secondary command buffers instead of OT
+		uniCmdBuffs[imIndex].beginOT()
+			.updateBuffer(descriptorPool.getBuffer(), descriptorPool.getOffset(imIndex, 0), sizeof(cam), &cam)
+			.bufferBarrier(descriptorPool.getBuffer(), descriptorPool.getOffset(imIndex, 0), sizeof(cam))
+		.end();
+		gfx::CommandBuffer cmds[] { uniCmdBuffs[imIndex], cmdBuffs[imIndex], gui.getCommand(swapchain, imIndex) };
 		gfx::CommandBuffer::submit(cmds, std::size(cmds),
 								device.getGraphicsQueue(),
 								imageAvailable[currentFrame], renderFinished[currentFrame],
@@ -417,7 +429,8 @@ void loop() {
 		if(window.isFramebufferResized() || result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR)
 			updateSwapchain();
 		else if(result != VK_SUCCESS) THROW_ERROR("failed to present swapchain image!");
-		currentFrame ^= 1;
+		++ rendered_frames;
+		currentFrame = (currentFrame + 1) % 20;
 	}
 }
 
@@ -426,6 +439,7 @@ void cleanDevice() {
 	cmdSubmitted.clear();
 	for(gfx::Semaphore &s : renderFinished) s.clean();
 	for(gfx::Semaphore &s : imageAvailable) s.clean();
+	uniCmdBuffs.clear();
 	cmdBuffs.clear();
 	for(Object &obj : objects) obj.vertexBuffer.clean();
 	gui.clean();

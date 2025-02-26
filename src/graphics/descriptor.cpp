@@ -60,22 +60,19 @@ void DescriptorPool::init(const Device &device, uint32_t size) {
 
 	// Create uniform buffer
 	uniformBufferSize = 0;
-	VkDeviceSize uniformAlignment = device.getProperties().limits.minUniformBufferOffsetAlignment;
+	VkDeviceSize uniformAlignment = device.getProperties().limits.minUniformBufferOffsetAlignment - 1;
 	uint32_t uniformBufferCount = 0;
 	for(std::size_t i = 0; i < bindings.size(); ++i)
 		if(bindings[i].descriptorType == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER) {
 			bufferRanges[i].offset = uniformBufferSize;
-			bufferRanges[i].storage = bufferRanges[i].size;
-			if(bufferRanges[i].storage % uniformAlignment)
-				bufferRanges[i].storage += uniformAlignment - (bufferRanges[i].storage % uniformAlignment);
+			bufferRanges[i].storage = (bufferRanges[i].size + uniformAlignment) & ~uniformAlignment;
 			uniformBufferSize += bindings[i].descriptorCount * bufferRanges[i].storage;
 			uniformBufferCount += bindings[i].descriptorCount;
 		}
 	if(uniformBufferSize) {
-		uniformBuffer.init(device, size * uniformBufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-				//TODO: instead of coherent use flush
-				VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-		uniformMap = uniformBuffer.mapMemory();
+		uniformBuffer.init(device, size * uniformBufferSize,
+				VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+				VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 	}
 	
 	// Update descriptor sets
